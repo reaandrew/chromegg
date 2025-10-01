@@ -1,0 +1,25 @@
+.chromegg-badge {
+  position: fixed;
+  display: none;
+  padding: 4px 8px;
+  background-color: #4caf50;
+  color: white;
+  font-size: 12px;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
+  font-weight: 500;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+  z-index: 2147483647;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.chromegg-badge[style*='display: none'] {
+  opacity: 0;
+}
+
+.chromegg-badge[style*='display: block'] {
+  opacity: 1;
+}

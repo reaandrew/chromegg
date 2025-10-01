@@ -1,0 +1,48 @@
+{
+  "name": "chromegg",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Chrome extension that shows 'activated' badge on focused fields",
+  "scripts": {
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
+    "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
+    "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
+    "lint": "eslint src/**/*.js",
+    "lint:fix": "eslint src/**/*.js --fix",
+    "format": "prettier --write \"src/**/*.{js,json,css}\"",
+    "format:check": "prettier --check \"src/**/*.{js,json,css}\"",
+    "build": "npm run lint && npm run test && npm run build:copy",
+    "build:copy": "mkdir -p dist/icons && cp src/badge.js src/content.js src/badge.css dist/ && cp src/icons/*.png dist/icons/ && cp manifest.json dist/",
+    "clean": "rm -rf dist",
+    "prepare": "husky",
+    "install:chrome": "echo 'Load unpacked extension from dist/ folder in Chrome'"
+  },
+  "keywords": [
+    "chrome-extension",
+    "focus",
+    "badge",
+    "accessibility"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^9.1.0",
+    "globals": "^15.0.0",
+    "husky": "^9.0.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.2.0"
+  },
+  "lint-staged": {
+    "src/**/*.js": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "src/**/*.{json,css}": [
+      "prettier --write"
+    ]
+  }
+}

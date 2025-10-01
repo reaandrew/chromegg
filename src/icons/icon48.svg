@@ -1,0 +1,15 @@
+<svg width="48" height="48" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="eggGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#4caf50;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2e7d32;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Egg shape -->
+  <ellipse cx="64" cy="70" rx="40" ry="50" fill="url(#eggGradient)" stroke="#1b5e20" stroke-width="3"/>
+  <!-- Highlight -->
+  <ellipse cx="55" cy="55" rx="12" ry="18" fill="white" opacity="0.3"/>
+  <!-- Text badge -->
+  <text x="64" y="76" font-family="Arial, sans-serif" font-size="28" font-weight="bold"
+        text-anchor="middle" fill="white" stroke="#1b5e20" stroke-width="1">A</text>
+</svg>
