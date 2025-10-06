@@ -62,9 +62,27 @@ jobs:
     - name: Run Semgrep analysis
       run: semgrep ci
 
+  gitguardian-scan:
+    name: GitGuardian Repository History Scan
+    runs-on: ubuntu-latest
+    needs: initial-checks
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install ggshield
+      run: pip install ggshield
+
+    - name: GitGuardian scan repository history
+      env:
+        GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
+      run: ggshield secret scan repo .
+
   release:
     runs-on: ubuntu-latest
-    needs: [initial-checks, semgrep]
+    needs: [initial-checks, semgrep, gitguardian-scan]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
