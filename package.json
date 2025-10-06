@@ -1,6 +1,6 @@
 {
   "name": "chromegg",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "type": "module",
   "description": "Chrome extension that shows 'activated' badge on focused fields",
   "scripts": {
