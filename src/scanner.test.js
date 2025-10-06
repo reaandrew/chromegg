@@ -1,4 +1,8 @@
 import { GitGuardianScanner } from './scanner.js';
+import { logger } from './logger.js';
+
+// Make logger globally available for tests
+global.logger = logger;
 
 describe('GitGuardianScanner', () => {
   let scanner;

@@ -3,7 +3,11 @@
  * Handles GitGuardian API requests to avoid CORS issues
  */
 
-import { logger } from './logger.js';
+// Logger is available globally from logger.js
+/* global logger */
+
+// Import logger module to initialize it
+import './logger.js';
 
 // Listen for messages from content scripts
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {

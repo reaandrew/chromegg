@@ -1,6 +1,11 @@
 // Set test flag before import
 global.window = { chromeggtesting: true };
 
+// Import logger first to make it globally available
+await import('./logger.js');
+const { logger } = await import('./logger.js');
+global.logger = logger;
+
 // Import content.js which will set globalThis.BadgeManager and globalThis.FieldTracker
 await import('./content.js');
 
@@ -273,7 +278,7 @@ describe('FieldTracker', () => {
       fieldTracker.init();
 
       expect(fieldTracker.focusHandler).toBeTruthy();
-      expect(fieldTracker.blurHandler).toBeTruthy();
+      expect(fieldTracker.changeHandler).toBeTruthy();
     });
   });
 
@@ -283,12 +288,12 @@ describe('FieldTracker', () => {
       fieldTracker.init();
 
       expect(fieldTracker.focusHandler).toBeTruthy();
-      expect(fieldTracker.blurHandler).toBeTruthy();
+      expect(fieldTracker.changeHandler).toBeTruthy();
 
       fieldTracker.cleanup();
 
       expect(fieldTracker.focusHandler).toBeNull();
-      expect(fieldTracker.blurHandler).toBeNull();
+      expect(fieldTracker.changeHandler).toBeNull();
       expect(fieldTracker.badgeManager.currentTarget).toBeNull();
     });
   });

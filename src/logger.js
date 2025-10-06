@@ -60,5 +60,16 @@ class Logger {
 // Create singleton instance
 const logger = new Logger();
 
-// Export for ES modules
+// Make available globally (for content scripts and service worker)
+if (typeof globalThis !== 'undefined') {
+  globalThis.logger = logger;
+}
+if (typeof window !== 'undefined') {
+  window.logger = logger;
+}
+if (typeof self !== 'undefined') {
+  self.logger = logger;
+}
+
+// Export for ES modules (for background service worker)
 export { logger };

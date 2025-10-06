@@ -1,4 +1,5 @@
-import { logger } from './logger.js';
+// Logger is available globally from logger.js (loaded first in manifest)
+/* global logger */
 
 class BadgeManager {
   constructor() {
@@ -93,7 +94,7 @@ class FieldTracker {
     this.badgeManager = new BadgeManager();
     this.scanner = scanner;
     this.focusHandler = null;
-    this.blurHandler = null;
+    this.changeHandler = null;
     this.scannedFields = new Map(); // Track scan results per field
   }
 
@@ -142,8 +143,8 @@ class FieldTracker {
     // Badge removed - no action on focus
   }
 
-  handleBlur(event) {
-    // Trigger scan on blur if scanner is configured
+  handleChange(event) {
+    // Trigger scan on change if scanner is configured
     if (this.scanner && event.target && this.isTrackableField(event.target)) {
       this.scanField(event.target);
     }
@@ -405,10 +406,10 @@ class FieldTracker {
 
   init() {
     this.focusHandler = (event) => this.handleFocus(event);
-    this.blurHandler = (event) => this.handleBlur(event);
+    this.changeHandler = (event) => this.handleChange(event);
 
     document.addEventListener('focus', this.focusHandler, true);
-    document.addEventListener('blur', this.blurHandler, true);
+    document.addEventListener('change', this.changeHandler, true);
   }
 
   cleanup() {
@@ -417,9 +418,9 @@ class FieldTracker {
       this.focusHandler = null;
     }
 
-    if (this.blurHandler) {
-      document.removeEventListener('blur', this.blurHandler, true);
-      this.blurHandler = null;
+    if (this.changeHandler) {
+      document.removeEventListener('change', this.changeHandler, true);
+      this.changeHandler = null;
     }
 
     this.badgeManager.cleanup();
@@ -450,10 +451,12 @@ if (
         // Scan all fields when DOM is fully loaded
         if (document.readyState === 'loading') {
           document.addEventListener('DOMContentLoaded', () => {
+            logger.warn('DOMContentLoaded - scanning all fields');
             tracker.scanAllFields();
           });
         } else {
           // DOM already loaded, scan immediately
+          logger.warn('DOM already loaded - scanning all fields immediately');
           tracker.scanAllFields();
         }
       } else {

@@ -3,7 +3,8 @@
  * Handles communication with GitGuardian API for secret scanning
  */
 
-import { logger } from './logger.js';
+// Logger is available globally from logger.js (loaded first in manifest)
+/* global logger */
 
 class GitGuardianScanner {
   constructor(apiUrl, apiKey) {
