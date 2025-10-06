@@ -4,13 +4,36 @@ A Chrome extension that scans form fields for secrets using GitGuardian API. Bui
 
 ## Features
 
-- Real-time secret scanning on form field blur
-- Visual feedback with red borders for fields containing secrets
-- Green borders for clean fields
-- GitGuardian API integration via background service worker
-- Configurable API settings via options page
-- Comprehensive test coverage (83%+)
-- Built with security in mind (minimal permissions, CSP)
+### Secret Detection
+- **Real-time scanning** of form fields using GitGuardian API
+- **Visual feedback** with red borders on fields containing detected secrets
+- **Auto-redaction** option to automatically replace detected secrets with customizable text
+
+### Operating Modes
+- **Manual mode** (default) - Scan triggered by clicking extension icon
+- **Continuous mode** - Automatic scanning on field blur events
+
+### Performance & Scalability
+- **Field aggregation** - Scans all fields in single API request (reduces token usage)
+- **Intelligent chunking** - Automatically splits large forms (>1MB) into chunks for multiscan endpoint
+- **Batched DOM updates** - Uses requestAnimationFrame for smooth UI with thousands of fields
+
+### Configuration
+- **API endpoint configuration** - Supports custom GitGuardian instances or public API
+- **Secure credential storage** - API keys stored in Chrome sync storage with masked display
+- **Debug mode** - Detailed console logging for troubleshooting
+- **Customizable redaction text** - Configure replacement text for detected secrets
+
+### Security & Privacy
+- **Minimal permissions** - Only storage and GitGuardian API access
+- **Manifest V3** - Modern, secure Chrome extension architecture
+- **Content Security Policy** - Prevents XSS and ensures code integrity
+- **Background service worker** - Handles API calls to bypass CORS restrictions
+
+### Field Support
+- Text inputs, email, password, search, tel, URL fields
+- Textareas and contenteditable elements
+- Excludes buttons, checkboxes, radio buttons, disabled/readonly fields
 
 ## Quick Start
 
