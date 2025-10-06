@@ -1,3 +1,9 @@
+## [1.1.0](https://github.com/reaandrew/chromegg/compare/v1.0.3...v1.1.0) (2025-10-06)
+
+### Features
+
+* Add automatic scanning on DOM load and update test page ([e4c4fe3](https://github.com/reaandrew/chromegg/commit/e4c4fe37d7d566a4cfa2557612bfba967dc8120c))
+
 ## [1.0.3](https://github.com/reaandrew/chromegg/compare/v1.0.2...v1.0.3) (2025-10-06)
 
 ## [1.0.2](https://github.com/reaandrew/chromegg/compare/v1.0.1...v1.0.2) (2025-10-06)
