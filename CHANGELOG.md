@@ -1,3 +1,13 @@
+## [1.2.0](https://github.com/reaandrew/chromegg/compare/v1.1.1...v1.2.0) (2025-10-06)
+
+### Features
+
+* Add JSON+base64 encoding for form data and debug logging feature ([9e9c29b](https://github.com/reaandrew/chromegg/commit/9e9c29bdec58cf817d46aa096e08ea53bb3f0c4d))
+
+### Bug Fixes
+
+* Use change event instead of blur and fix logger module loading ([b0c3149](https://github.com/reaandrew/chromegg/commit/b0c3149ab112311cf36285d956873210ad7e0981))
+
 ## [1.1.1](https://github.com/reaandrew/chromegg/compare/v1.1.0...v1.1.1) (2025-10-06)
 
 ## [1.1.0](https://github.com/reaandrew/chromegg/compare/v1.0.3...v1.1.0) (2025-10-06)
