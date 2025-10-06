@@ -86,3 +86,16 @@ export async function handleScanRequest(data) {
     throw error;
   }
 }
+
+// Handle extension icon click to trigger manual scan
+chrome.action.onClicked.addListener(async (tab) => {
+  logger.warn('Extension icon clicked, triggering manual scan on tab:', tab.id);
+
+  try {
+    // Send message to content script to trigger scan
+    await chrome.tabs.sendMessage(tab.id, { action: 'manualScan' });
+    logger.warn('Manual scan triggered successfully');
+  } catch (error) {
+    logger.error('Failed to trigger manual scan:', error);
+  }
+});

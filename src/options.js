@@ -4,6 +4,7 @@ const saveButton = document.getElementById('saveButton');
 const apiUrlInput = document.getElementById('apiUrl');
 const apiKeyInput = document.getElementById('apiKey');
 const debugModeCheckbox = document.getElementById('debugMode');
+const continuousModeCheckbox = document.getElementById('continuousMode');
 const autoRedactCheckbox = document.getElementById('autoRedact');
 const redactTextInput = document.getElementById('redactText');
 const statusDiv = document.getElementById('status');
@@ -11,7 +12,14 @@ const statusDiv = document.getElementById('status');
 // Load saved credentials when page opens
 document.addEventListener('DOMContentLoaded', () => {
   chrome.storage.sync.get(
-    ['apiUrl', 'apiKey', 'debugMode', 'autoRedact', 'redactText'],
+    [
+      'apiUrl',
+      'apiKey',
+      'debugMode',
+      'continuousMode',
+      'autoRedact',
+      'redactText',
+    ],
     (result) => {
       if (result.apiUrl) {
         apiUrlInput.value = result.apiUrl;
@@ -21,6 +29,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       if (result.debugMode !== undefined) {
         debugModeCheckbox.checked = result.debugMode;
+      }
+      if (result.continuousMode !== undefined) {
+        continuousModeCheckbox.checked = result.continuousMode;
+      } else {
+        // Default to false (manual mode)
+        continuousModeCheckbox.checked = false;
       }
       if (result.autoRedact !== undefined) {
         autoRedactCheckbox.checked = result.autoRedact;
@@ -40,6 +54,7 @@ saveButton.addEventListener('click', () => {
   const apiUrl = apiUrlInput.value.trim();
   const apiKey = apiKeyInput.value.trim();
   const debugMode = debugModeCheckbox.checked;
+  const continuousMode = continuousModeCheckbox.checked;
   const autoRedact = autoRedactCheckbox.checked;
   const redactText = redactTextInput.value || 'REDACTED';
 
@@ -58,6 +73,7 @@ saveButton.addEventListener('click', () => {
       apiUrl: apiUrl,
       apiKey: apiKey,
       debugMode: debugMode,
+      continuousMode: continuousMode,
       autoRedact: autoRedact,
       redactText: redactText,
     },

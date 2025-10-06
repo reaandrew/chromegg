@@ -272,6 +272,54 @@ describe('FieldTracker', () => {
     });
   });
 
+  describe('handleChange', () => {
+    test('does not scan when continuous mode is disabled', () => {
+      let scanCalled = false;
+      const mockScanner = {
+        scanContent: () => {
+          scanCalled = true;
+          return Promise.resolve({ policy_breaks: [], policy_break_count: 0 });
+        },
+      };
+      fieldTracker = new FieldTracker(mockScanner, { continuousMode: false });
+      fieldTracker.init();
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = 'test value';
+      document.body.appendChild(input);
+
+      // Trigger change event
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+
+      // Scanner should NOT be called
+      expect(scanCalled).toBe(false);
+    });
+
+    test('scans when continuous mode is enabled', () => {
+      let scanCalled = false;
+      const mockScanner = {
+        scanContent: () => {
+          scanCalled = true;
+          return Promise.resolve({ policy_breaks: [], policy_break_count: 0 });
+        },
+      };
+      fieldTracker = new FieldTracker(mockScanner, { continuousMode: true });
+      fieldTracker.init();
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = 'test value';
+      document.body.appendChild(input);
+
+      // Trigger change event
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+
+      // Scanner SHOULD be called
+      expect(scanCalled).toBe(true);
+    });
+  });
+
   describe('init', () => {
     test('sets up event listeners', () => {
       fieldTracker = new FieldTracker();

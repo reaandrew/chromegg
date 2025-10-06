@@ -96,6 +96,8 @@ class FieldTracker {
     this.focusHandler = null;
     this.changeHandler = null;
     this.scannedFields = new Map(); // Track scan results per field
+    this.continuousMode =
+      options.continuousMode !== undefined ? options.continuousMode : false;
     this.autoRedact =
       options.autoRedact !== undefined ? options.autoRedact : true;
     this.redactText = options.redactText || 'REDACTED';
@@ -147,8 +149,13 @@ class FieldTracker {
   }
 
   handleChange(event) {
-    // Trigger scan on change if scanner is configured
-    if (this.scanner && event.target && this.isTrackableField(event.target)) {
+    // Only trigger scan on change if in continuous mode
+    if (
+      this.continuousMode &&
+      this.scanner &&
+      event.target &&
+      this.isTrackableField(event.target)
+    ) {
       this.scanField(event.target);
     }
   }
@@ -628,7 +635,7 @@ if (
   typeof chrome !== 'undefined'
 ) {
   chrome.storage.sync.get(
-    ['apiUrl', 'apiKey', 'autoRedact', 'redactText'],
+    ['apiUrl', 'apiKey', 'continuousMode', 'autoRedact', 'redactText'],
     (result) => {
       if (
         result.apiUrl &&
@@ -640,6 +647,10 @@ if (
         if (typeof GitGuardianScanner !== 'undefined') {
           const scanner = new GitGuardianScanner(result.apiUrl, result.apiKey);
           const options = {
+            continuousMode:
+              result.continuousMode !== undefined
+                ? result.continuousMode
+                : false,
             autoRedact:
               result.autoRedact !== undefined ? result.autoRedact : true,
             redactText: result.redactText || 'REDACTED',
@@ -647,17 +658,30 @@ if (
           const tracker = new FieldTracker(scanner, options);
           tracker.init();
 
-          // Scan all fields when DOM is fully loaded
-          if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => {
-              logger.warn('DOMContentLoaded - scanning all fields');
+          // Only auto-scan on page load if in continuous mode
+          if (options.continuousMode) {
+            if (document.readyState === 'loading') {
+              document.addEventListener('DOMContentLoaded', () => {
+                logger.warn(
+                  'DOMContentLoaded - scanning all fields (continuous mode)'
+                );
+                tracker.scanAllFields();
+              });
+            } else {
+              // DOM already loaded, scan immediately
+              logger.warn(
+                'DOM already loaded - scanning all fields immediately (continuous mode)'
+              );
               tracker.scanAllFields();
-            });
+            }
           } else {
-            // DOM already loaded, scan immediately
-            logger.warn('DOM already loaded - scanning all fields immediately');
-            tracker.scanAllFields();
+            logger.warn(
+              'Manual mode enabled - waiting for extension button click'
+            );
           }
+
+          // Expose tracker globally for manual scans
+          globalThis.chromeggTracker = tracker;
         } else {
           logger.error('GitGuardianScanner not available');
           // Fall back to tracker without scanner
@@ -667,6 +691,25 @@ if (
       }
     }
   );
+}
+
+// Listen for manual scan requests from extension icon click
+if (
+  typeof window !== 'undefined' &&
+  !window.chromeggtesting &&
+  typeof chrome !== 'undefined' &&
+  chrome.runtime
+) {
+  chrome.runtime.onMessage.addListener((message, _sender, _sendResponse) => {
+    if (message.action === 'manualScan') {
+      logger.warn('Manual scan requested via extension icon click');
+      if (globalThis.chromeggTracker) {
+        globalThis.chromeggTracker.scanAllFields();
+      } else {
+        logger.error('Tracker not initialized - cannot perform manual scan');
+      }
+    }
+  });
 }
 
 // Export for tests - make classes available on globalThis
