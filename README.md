@@ -36,12 +36,20 @@ A Chrome extension that scans form fields for secrets using GitGuardian API. Bui
    - Enter your GitGuardian API key
    - Click "Save Settings"
 
-5. **Test the extension:**
-   - Open `test-page.html` in Chrome: `file:///path/to/chromegg/test-page.html`
-   - Type in the form fields (try entering API keys, passwords, etc.)
-   - Click away from the field (blur)
-   - Fields with secrets will show a **red border** 🔴
-   - Clean fields will show a **green border** 🟢
+5. **Test with the included test page:**
+   - Open the test page in Chrome:
+     ```bash
+     open test-page.html
+     # Or manually open: file:///path/to/chromegg/test-page.html
+     ```
+   - Try entering test data in the form fields:
+     - **API keys**: `AKIAIOSFODNN7EXAMPLE` (AWS example)
+     - **Passwords**: `MySecretPassword123!`
+     - **Regular text**: `Hello World`
+   - Click away from the field (blur event triggers scan)
+   - Observe the results:
+     - **Red border** 🔴 = Secret detected
+     - **Green border** 🟢 = No secrets found
 
 ## Installation
 
