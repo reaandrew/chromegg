@@ -90,12 +90,15 @@ class BadgeManager {
 }
 
 class FieldTracker {
-  constructor(scanner = null) {
+  constructor(scanner = null, options = {}) {
     this.badgeManager = new BadgeManager();
     this.scanner = scanner;
     this.focusHandler = null;
     this.changeHandler = null;
     this.scannedFields = new Map(); // Track scan results per field
+    this.autoRedact =
+      options.autoRedact !== undefined ? options.autoRedact : true;
+    this.redactText = options.redactText || 'REDACTED';
   }
 
   isTrackableField(element) {
@@ -152,15 +155,16 @@ class FieldTracker {
 
   /**
    * Collect all form field values on the page and combine into single document
-   * @returns {Object} Single document object with combined form data in JSON format with base64-encoded values
+   * @returns {Object} Single document object with combined form data in YAML format
    */
   collectFormData() {
     const fields = document.querySelectorAll(
       'input[type="text"], input[type="email"], input[type="password"], input[type="search"], input[type="tel"], input[type="url"], textarea, [contenteditable="true"]'
     );
 
-    const jsonFields = [];
+    const yamlFields = [];
     const fieldMap = new Map();
+    const fieldLineMap = new Map(); // Track which lines each field occupies
 
     fields.forEach((field, index) => {
       if (!this.isTrackableField(field)) {
@@ -183,27 +187,51 @@ class FieldTracker {
       // Store field reference for later
       fieldMap.set(fieldId, field);
 
-      // Base64 encode the value
-      const encodedValue = btoa(unescape(encodeURIComponent(value)));
+      // Track line numbers for this field
+      // Calculate which lines this field will occupy in the YAML
+      const currentLineCount = yamlFields.reduce((count, f) => {
+        return count + f.value.split('\n').length + 2; // +2 for field_id line and value: | line
+      }, 0);
 
-      // Add to JSON structure
-      jsonFields.push({
+      const startLine = currentLineCount + 1; // +1 because GitGuardian uses 1-based line numbers
+      const valueLines = value.split('\n').length;
+      const endLine = startLine + valueLines + 1; // +1 for the "value: |" line
+
+      fieldLineMap.set(fieldId, {
+        startLine: startLine,
+        endLine: endLine,
+        valueStartLine: startLine + 2, // First line of actual value content
+      });
+
+      // Add to YAML structure with multiline format
+      yamlFields.push({
         id: fieldId,
-        value: encodedValue,
+        value: value,
       });
     });
 
-    if (jsonFields.length === 0) {
+    if (yamlFields.length === 0) {
       return null;
     }
 
-    // Create JSON document
-    const jsonDocument = JSON.stringify({ fields: jsonFields }, null, 2);
+    // Create YAML document with multiline string format
+    let yamlDocument = '';
+    yamlFields.forEach((field) => {
+      yamlDocument += `- field_id: ${field.id}\n`;
+      yamlDocument += `  value: |\n`;
+      // Indent each line of the value with 4 spaces
+      const indentedValue = field.value
+        .split('\n')
+        .map((line) => `    ${line}`)
+        .join('\n');
+      yamlDocument += indentedValue + '\n';
+    });
 
     return {
-      document: jsonDocument,
-      filename: `form_data_${Date.now()}.json`,
+      document: yamlDocument,
+      filename: `form_data_${Date.now()}.yaml`,
       fieldMap: fieldMap,
+      fieldLineMap: fieldLineMap,
     };
   }
 
@@ -247,7 +275,7 @@ class FieldTracker {
       logger.warn('Scan result received:', result);
 
       // Update borders for all scanned fields
-      this.updateFieldBorders(result, formData.fieldMap);
+      this.updateFieldBorders(result, formData.fieldMap, formData.fieldLineMap);
     } catch (error) {
       logger.error('Error scanning fields:', error);
       // On error, don't apply any styling
@@ -267,9 +295,14 @@ class FieldTracker {
    * Update field borders based on scan results
    * @param {Object} scanResult - GitGuardian scan result
    * @param {Map} fieldMap - Map of field IDs to field elements
+   * @param {Map} fieldLineMap - Map of field IDs to their line ranges in YAML
    */
-  updateFieldBorders(scanResult, fieldMap) {
-    logger.warn('updateFieldBorders called with:', { scanResult, fieldMap });
+  updateFieldBorders(scanResult, fieldMap, fieldLineMap) {
+    logger.warn('updateFieldBorders called with:', {
+      scanResult,
+      fieldMap,
+      fieldLineMap,
+    });
 
     if (!scanResult) {
       logger.warn('No scan result, returning early');
@@ -293,22 +326,24 @@ class FieldTracker {
 
     logger.warn('Policy breaks found:', policyBreaks.length);
 
-    // Extract field IDs that have secrets
-    const fieldsWithSecrets = new Set();
+    // Extract field IDs that have secrets and their matches
+    const fieldsWithSecrets = new Map(); // fieldId -> matches[]
     policyBreaks.forEach((policyBreak) => {
       const matches = policyBreak.matches || [];
       matches.forEach((match) => {
-        // Parse the match to find which field it belongs to
-        // The match contains line numbers or the actual content
-        const fieldId = this.findFieldIdForMatch(match, fieldMap);
+        // Parse the match to find which field it belongs to using line numbers
+        const fieldId = this.findFieldIdForMatch(match, fieldLineMap);
         logger.warn('Match found, mapped to fieldId:', fieldId);
         if (fieldId) {
-          fieldsWithSecrets.add(fieldId);
+          if (!fieldsWithSecrets.has(fieldId)) {
+            fieldsWithSecrets.set(fieldId, []);
+          }
+          fieldsWithSecrets.get(fieldId).push(match);
         }
       });
     });
 
-    logger.warn('Fields with secrets:', Array.from(fieldsWithSecrets));
+    logger.warn('Fields with secrets:', Array.from(fieldsWithSecrets.keys()));
     logger.warn('FieldMap size:', fieldMap.size);
 
     // Get all trackable fields on the page (not just the ones with content)
@@ -348,6 +383,9 @@ class FieldTracker {
         field.classList.add('chromegg-secret-found');
         field.classList.remove('chromegg-no-secret');
         this.scannedFields.set(field, { hasSecret: true });
+
+        // Apply redaction if enabled
+        this.applyRedaction(field, fieldsWithSecrets.get(fieldId));
       } else {
         // No secret - green border
         logger.warn('Applying GREEN border to:', fieldId);
@@ -359,49 +397,129 @@ class FieldTracker {
   }
 
   /**
-   * Find which field a match belongs to based on the JSON document structure
-   * @param {Object} match - GitGuardian match object
-   * @param {Map} fieldMap - Map of field IDs to field elements
+   * Find which field a match belongs to based on line numbers in YAML
+   * @param {Object} match - GitGuardian match object with line_start/line_end
+   * @param {Map} fieldLineMap - Map of field IDs to their line ranges
    * @returns {string|null} Field ID or null
    */
-  findFieldIdForMatch(match, fieldMap) {
-    // The match object contains the actual matched content
-    // GitGuardian may return the base64-encoded match or decoded match
-    const matchContent = match.match || '';
+  findFieldIdForMatch(match, fieldLineMap) {
+    // Use line numbers from GitGuardian to find which field the match belongs to
+    const matchLineStart = match.line_start;
+    const matchLineEnd = match.line_end;
 
-    for (const [fieldId, field] of fieldMap.entries()) {
-      const fieldValue =
-        field.contentEditable === 'true'
-          ? field.textContent || ''
-          : field.value || '';
+    if (!matchLineStart) {
+      logger.warn('Match has no line_start:', match);
+      return null;
+    }
 
-      // Check if match is in the plain text value
-      if (fieldValue.includes(matchContent)) {
+    // Find the field whose line range contains this match
+    for (const [fieldId, lineInfo] of fieldLineMap.entries()) {
+      // Check if the match lines fall within this field's value range
+      if (
+        matchLineStart >= lineInfo.valueStartLine &&
+        matchLineEnd <= lineInfo.endLine
+      ) {
+        logger.warn(
+          `Match on lines ${matchLineStart}-${matchLineEnd} belongs to field ${fieldId} (lines ${lineInfo.startLine}-${lineInfo.endLine})`
+        );
         return fieldId;
-      }
-
-      // Also check if match is in the base64-encoded value
-      try {
-        const encodedValue = btoa(unescape(encodeURIComponent(fieldValue)));
-        if (encodedValue.includes(matchContent)) {
-          return fieldId;
-        }
-      } catch {
-        // Encoding error, skip this check
-      }
-
-      // Check if the match itself might be base64 and decode it
-      try {
-        const decodedMatch = decodeURIComponent(escape(atob(matchContent)));
-        if (fieldValue.includes(decodedMatch)) {
-          return fieldId;
-        }
-      } catch {
-        // Not valid base64, skip this check
       }
     }
 
+    logger.warn(
+      `No field found for match on lines ${matchLineStart}-${matchLineEnd}`
+    );
     return null;
+  }
+
+  /**
+   * Apply redaction to a field based on detected matches
+   * @param {HTMLElement} field - The field element
+   * @param {Array} matches - Array of match objects from GitGuardian with line/index positions
+   */
+  applyRedaction(field, matches) {
+    logger.warn('applyRedaction called with:', {
+      autoRedact: this.autoRedact,
+      matchCount: matches ? matches.length : 0,
+      field: field,
+      matches: matches,
+    });
+
+    if (!this.autoRedact || !matches || matches.length === 0) {
+      logger.warn('Skipping redaction:', {
+        autoRedact: this.autoRedact,
+        hasMatches: !!matches,
+        matchCount: matches ? matches.length : 0,
+      });
+      return;
+    }
+
+    logger.warn('Applying redaction to field:', field, matches);
+
+    let fieldValue =
+      field.contentEditable === 'true'
+        ? field.textContent || ''
+        : field.value || '';
+
+    // Split field value into lines for line-based redaction
+    const lines = fieldValue.split('\n');
+    logger.warn('Field has', lines.length, 'lines');
+
+    // Collect all positions to redact
+    // Since we're working with multiline content, we need to calculate absolute positions
+    const positions = [];
+
+    matches.forEach((match) => {
+      // GitGuardian provides match string and positions
+      // The match.match is the actual secret text found
+      const matchText = match.match || '';
+
+      // Find ALL occurrences of this secret in the field value
+      let searchIndex = 0;
+      while (searchIndex < fieldValue.length) {
+        const idx = fieldValue.indexOf(matchText, searchIndex);
+        if (idx === -1) {
+          break; // No more occurrences
+        }
+
+        positions.push({
+          start: idx,
+          end: idx + matchText.length,
+          text: matchText,
+        });
+        logger.warn(
+          `Found match "${matchText}" at position ${idx}-${idx + matchText.length}`
+        );
+
+        // Continue searching after this match
+        searchIndex = idx + matchText.length;
+      }
+    });
+
+    logger.warn(`Found ${positions.length} positions to redact`);
+
+    // Sort by position descending to replace from end to start
+    // This prevents index shifting issues
+    positions.sort((a, b) => b.start - a.start);
+
+    // Apply redactions
+    positions.forEach((pos) => {
+      fieldValue =
+        fieldValue.substring(0, pos.start) +
+        this.redactText +
+        fieldValue.substring(pos.end);
+
+      logger.warn(
+        `Redacted secret "${pos.text}" from ${pos.start} to ${pos.end}`
+      );
+    });
+
+    // Update field value
+    if (field.contentEditable === 'true') {
+      field.textContent = fieldValue;
+    } else {
+      field.value = fieldValue;
+    }
   }
 
   init() {
@@ -435,38 +553,46 @@ if (
   !window.chromeggtesting &&
   typeof chrome !== 'undefined'
 ) {
-  chrome.storage.sync.get(['apiUrl', 'apiKey'], (result) => {
-    if (
-      result.apiUrl &&
-      result.apiUrl.trim() &&
-      result.apiKey &&
-      result.apiKey.trim()
-    ) {
-      // Create scanner instance (GitGuardianScanner is globally available from scanner.js)
-      if (typeof GitGuardianScanner !== 'undefined') {
-        const scanner = new GitGuardianScanner(result.apiUrl, result.apiKey);
-        const tracker = new FieldTracker(scanner);
-        tracker.init();
+  chrome.storage.sync.get(
+    ['apiUrl', 'apiKey', 'autoRedact', 'redactText'],
+    (result) => {
+      if (
+        result.apiUrl &&
+        result.apiUrl.trim() &&
+        result.apiKey &&
+        result.apiKey.trim()
+      ) {
+        // Create scanner instance (GitGuardianScanner is globally available from scanner.js)
+        if (typeof GitGuardianScanner !== 'undefined') {
+          const scanner = new GitGuardianScanner(result.apiUrl, result.apiKey);
+          const options = {
+            autoRedact:
+              result.autoRedact !== undefined ? result.autoRedact : true,
+            redactText: result.redactText || 'REDACTED',
+          };
+          const tracker = new FieldTracker(scanner, options);
+          tracker.init();
 
-        // Scan all fields when DOM is fully loaded
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', () => {
-            logger.warn('DOMContentLoaded - scanning all fields');
+          // Scan all fields when DOM is fully loaded
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+              logger.warn('DOMContentLoaded - scanning all fields');
+              tracker.scanAllFields();
+            });
+          } else {
+            // DOM already loaded, scan immediately
+            logger.warn('DOM already loaded - scanning all fields immediately');
             tracker.scanAllFields();
-          });
+          }
         } else {
-          // DOM already loaded, scan immediately
-          logger.warn('DOM already loaded - scanning all fields immediately');
-          tracker.scanAllFields();
+          logger.error('GitGuardianScanner not available');
+          // Fall back to tracker without scanner
+          const tracker = new FieldTracker();
+          tracker.init();
         }
-      } else {
-        logger.error('GitGuardianScanner not available');
-        // Fall back to tracker without scanner
-        const tracker = new FieldTracker();
-        tracker.init();
       }
     }
-  });
+  );
 }
 
 // Export for tests - make classes available on globalThis

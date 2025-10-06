@@ -132,6 +132,24 @@
       </div>
     </div>
 
+    <div class="form-group">
+      <div class="checkbox-group">
+        <input type="checkbox" id="autoRedact" checked />
+        <label for="autoRedact" style="margin-bottom: 0;">Auto-Redact Detected Secrets</label>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="redactText">Redaction Text</label>
+      <input
+        type="text"
+        id="redactText"
+        placeholder="REDACTED"
+        value="REDACTED"
+        autocomplete="off"
+      />
+    </div>
+
     <button id="saveButton">Save Settings</button>
 
     <div id="status" class="status"></div>

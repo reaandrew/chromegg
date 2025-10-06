@@ -4,21 +4,35 @@ const saveButton = document.getElementById('saveButton');
 const apiUrlInput = document.getElementById('apiUrl');
 const apiKeyInput = document.getElementById('apiKey');
 const debugModeCheckbox = document.getElementById('debugMode');
+const autoRedactCheckbox = document.getElementById('autoRedact');
+const redactTextInput = document.getElementById('redactText');
 const statusDiv = document.getElementById('status');
 
 // Load saved credentials when page opens
 document.addEventListener('DOMContentLoaded', () => {
-  chrome.storage.sync.get(['apiUrl', 'apiKey', 'debugMode'], (result) => {
-    if (result.apiUrl) {
-      apiUrlInput.value = result.apiUrl;
+  chrome.storage.sync.get(
+    ['apiUrl', 'apiKey', 'debugMode', 'autoRedact', 'redactText'],
+    (result) => {
+      if (result.apiUrl) {
+        apiUrlInput.value = result.apiUrl;
+      }
+      if (result.apiKey) {
+        apiKeyInput.value = result.apiKey;
+      }
+      if (result.debugMode !== undefined) {
+        debugModeCheckbox.checked = result.debugMode;
+      }
+      if (result.autoRedact !== undefined) {
+        autoRedactCheckbox.checked = result.autoRedact;
+      } else {
+        // Default to true
+        autoRedactCheckbox.checked = true;
+      }
+      if (result.redactText !== undefined) {
+        redactTextInput.value = result.redactText;
+      }
     }
-    if (result.apiKey) {
-      apiKeyInput.value = result.apiKey;
-    }
-    if (result.debugMode !== undefined) {
-      debugModeCheckbox.checked = result.debugMode;
-    }
-  });
+  );
 });
 
 // Save credentials when button clicked
@@ -26,6 +40,8 @@ saveButton.addEventListener('click', () => {
   const apiUrl = apiUrlInput.value.trim();
   const apiKey = apiKeyInput.value.trim();
   const debugMode = debugModeCheckbox.checked;
+  const autoRedact = autoRedactCheckbox.checked;
+  const redactText = redactTextInput.value || 'REDACTED';
 
   if (!apiUrl) {
     showStatus('Please enter the GitGuardian API URL', 'error');
@@ -38,7 +54,13 @@ saveButton.addEventListener('click', () => {
   }
 
   chrome.storage.sync.set(
-    { apiUrl: apiUrl, apiKey: apiKey, debugMode: debugMode },
+    {
+      apiUrl: apiUrl,
+      apiKey: apiKey,
+      debugMode: debugMode,
+      autoRedact: autoRedact,
+      redactText: redactText,
+    },
     () => {
       if (chrome.runtime.lastError) {
         showStatus(

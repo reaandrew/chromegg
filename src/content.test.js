@@ -318,24 +318,14 @@ describe('FieldTracker', () => {
 
       expect(result).toBeTruthy();
 
-      // Parse the JSON document
-      const parsed = JSON.parse(result.document);
-      expect(parsed.fields).toHaveLength(2);
-
-      // Check base64 encoded values
-      const field1 = parsed.fields.find((f) => f.id === 'input_text_field1');
-      const field2 = parsed.fields.find((f) => f.id === 'input_email_email');
-
-      expect(field1).toBeTruthy();
-      expect(field2).toBeTruthy();
-
-      // Decode and verify values
-      const decodedValue1 = decodeURIComponent(escape(atob(field1.value)));
-      const decodedValue2 = decodeURIComponent(escape(atob(field2.value)));
-
-      expect(decodedValue1).toBe('test value 1');
-      expect(decodedValue2).toBe('test@example.com');
+      // Check YAML document format
+      expect(result.document).toContain('- field_id: input_text_field1');
+      expect(result.document).toContain('- field_id: input_email_email');
+      expect(result.document).toContain('value: |');
+      expect(result.document).toContain('test value 1');
+      expect(result.document).toContain('test@example.com');
       expect(result.fieldMap.size).toBe(2);
+      expect(result.fieldLineMap.size).toBe(2);
     });
 
     test('skips empty fields', () => {
@@ -421,53 +411,57 @@ describe('FieldTracker', () => {
   });
 
   describe('findFieldIdForMatch', () => {
-    test('finds field containing match content', () => {
+    test('finds field using line numbers', () => {
       fieldTracker = new FieldTracker();
 
-      const input1 = document.createElement('input');
-      input1.value = 'no match here';
-      const input2 = document.createElement('input');
-      input2.value = 'secret123';
+      const fieldLineMap = new Map();
+      fieldLineMap.set('field1', {
+        startLine: 1,
+        endLine: 3,
+        valueStartLine: 3,
+      });
+      fieldLineMap.set('field2', {
+        startLine: 4,
+        endLine: 6,
+        valueStartLine: 6,
+      });
 
-      const fieldMap = new Map();
-      fieldMap.set('field1', input1);
-      fieldMap.set('field2', input2);
-
-      const match = { match: 'secret123' };
-      const result = fieldTracker.findFieldIdForMatch(match, fieldMap);
+      const match = { match: 'secret123', line_start: 6, line_end: 6 };
+      const result = fieldTracker.findFieldIdForMatch(match, fieldLineMap);
 
       expect(result).toBe('field2');
     });
 
-    test('returns null when no field matches', () => {
+    test('returns null when no field matches line range', () => {
       fieldTracker = new FieldTracker();
 
-      const input = document.createElement('input');
-      input.value = 'no match';
+      const fieldLineMap = new Map();
+      fieldLineMap.set('field1', {
+        startLine: 1,
+        endLine: 3,
+        valueStartLine: 3,
+      });
 
-      const fieldMap = new Map();
-      fieldMap.set('field1', input);
-
-      const match = { match: 'secret123' };
-      const result = fieldTracker.findFieldIdForMatch(match, fieldMap);
+      const match = { match: 'secret123', line_start: 10, line_end: 10 };
+      const result = fieldTracker.findFieldIdForMatch(match, fieldLineMap);
 
       expect(result).toBeNull();
     });
 
-    test('handles contenteditable fields', () => {
+    test('returns null when match has no line_start', () => {
       fieldTracker = new FieldTracker();
 
-      const div = document.createElement('div');
-      div.contentEditable = 'true';
-      div.textContent = 'secret content';
+      const fieldLineMap = new Map();
+      fieldLineMap.set('field1', {
+        startLine: 1,
+        endLine: 3,
+        valueStartLine: 3,
+      });
 
-      const fieldMap = new Map();
-      fieldMap.set('field1', div);
+      const match = { match: 'secret123' };
+      const result = fieldTracker.findFieldIdForMatch(match, fieldLineMap);
 
-      const match = { match: 'secret content' };
-      const result = fieldTracker.findFieldIdForMatch(match, fieldMap);
-
-      expect(result).toBe('field1');
+      expect(result).toBeNull();
     });
   });
 
@@ -532,6 +526,152 @@ describe('FieldTracker', () => {
       fieldTracker.updateFieldBorders(scanResult, fieldMap);
 
       expect(input.classList.contains('chromegg-no-secret')).toBe(true);
+    });
+  });
+
+  describe('applyRedaction', () => {
+    test('does not redact when autoRedact is false', () => {
+      fieldTracker = new FieldTracker(null, {
+        autoRedact: false,
+        redactText: 'REDACTED',
+      });
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = 'secret ghp_1234567890';
+      document.body.appendChild(input);
+
+      // GitGuardian returns plain text matches with YAML
+      const matches = [{ match: 'ghp_1234567890', line_start: 1, line_end: 1 }];
+      fieldTracker.applyRedaction(input, matches);
+
+      expect(input.value).toBe('secret ghp_1234567890');
+    });
+
+    test('redacts secrets when autoRedact is true', () => {
+      fieldTracker = new FieldTracker(null, {
+        autoRedact: true,
+        redactText: 'REDACTED',
+      });
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = 'secret ghp_1234567890 and more';
+      document.body.appendChild(input);
+
+      // GitGuardian returns plain text matches with YAML
+      const matches = [{ match: 'ghp_1234567890', line_start: 1, line_end: 1 }];
+      fieldTracker.applyRedaction(input, matches);
+
+      // The space after the token is preserved
+      expect(input.value).toBe('secret REDACTED and more');
+    });
+
+    test('uses custom redaction text', () => {
+      fieldTracker = new FieldTracker(null, {
+        autoRedact: true,
+        redactText: '[HIDDEN]',
+      });
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = 'password: secret123';
+      document.body.appendChild(input);
+
+      const matches = [{ match: 'secret123', line_start: 1, line_end: 1 }];
+      fieldTracker.applyRedaction(input, matches);
+
+      expect(input.value).toBe('password: [HIDDEN]');
+    });
+
+    test('redacts multiple secrets', () => {
+      fieldTracker = new FieldTracker(null, {
+        autoRedact: true,
+        redactText: 'XXX',
+      });
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = 'key1: secret1 key2: secret2';
+      document.body.appendChild(input);
+
+      const matches = [
+        { match: 'secret1', line_start: 1, line_end: 1 },
+        { match: 'secret2', line_start: 1, line_end: 1 },
+      ];
+      fieldTracker.applyRedaction(input, matches);
+
+      expect(input.value).toBe('key1: XXX key2: XXX');
+    });
+
+    test('redacts in contenteditable elements', () => {
+      fieldTracker = new FieldTracker(null, {
+        autoRedact: true,
+        redactText: 'REDACTED',
+      });
+
+      const div = document.createElement('div');
+      div.contentEditable = 'true';
+      div.textContent = 'secret token: abc123';
+      document.body.appendChild(div);
+
+      const matches = [{ match: 'abc123', line_start: 1, line_end: 1 }];
+      fieldTracker.applyRedaction(div, matches);
+
+      expect(div.textContent).toBe('secret token: REDACTED');
+    });
+
+    test('handles plain text matches correctly', () => {
+      fieldTracker = new FieldTracker(null, {
+        autoRedact: true,
+        redactText: 'REDACTED',
+      });
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = 'this has token123 inside';
+      document.body.appendChild(input);
+
+      const matches = [{ match: 'token123', line_start: 1, line_end: 1 }];
+      fieldTracker.applyRedaction(input, matches);
+
+      expect(input.value).toBe('this has REDACTED inside');
+    });
+
+    test('does nothing with empty matches array', () => {
+      fieldTracker = new FieldTracker(null, {
+        autoRedact: true,
+        redactText: 'REDACTED',
+      });
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = 'no secrets here';
+      document.body.appendChild(input);
+
+      fieldTracker.applyRedaction(input, []);
+
+      expect(input.value).toBe('no secrets here');
+    });
+
+    test('redacts all occurrences of the same secret', () => {
+      fieldTracker = new FieldTracker(null, {
+        autoRedact: true,
+        redactText: 'REDACTED',
+      });
+
+      const textarea = document.createElement('textarea');
+      textarea.value =
+        'Bearer token123\nAnother line with token123\ntoken123 appears three times';
+      document.body.appendChild(textarea);
+
+      // GitGuardian might only return one match even if secret appears multiple times
+      const matches = [{ match: 'token123', line_start: 1, line_end: 1 }];
+      fieldTracker.applyRedaction(textarea, matches);
+
+      expect(textarea.value).toBe(
+        'Bearer REDACTED\nAnother line with REDACTED\nREDACTED appears three times'
+      );
     });
   });
 });
