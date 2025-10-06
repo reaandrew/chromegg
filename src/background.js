@@ -24,33 +24,41 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 /**
  * Handle GitGuardian scan request
- * @param {Object} data - Request data containing apiUrl, apiKey, and documents
+ * @param {Object} data - Request data containing apiUrl, apiKey, documents, and useMultiscan flag
  * @returns {Promise<Object>} Scan results
  */
 export async function handleScanRequest(data) {
-  const { apiUrl, apiKey, documents } = data;
+  const { apiUrl, apiKey, documents, useMultiscan = false } = data;
 
   if (!apiUrl || !apiKey) {
     throw new Error('GitGuardian API URL and key are required');
   }
 
-  const endpoint = `${apiUrl.replace(/\/+$/, '')}/v1/scan`;
+  // Choose endpoint based on useMultiscan flag
+  const endpointPath = useMultiscan ? '/v1/multiscan' : '/v1/scan';
+  const endpoint = `${apiUrl.replace(/\/+$/, '')}${endpointPath}`;
 
-  // GitGuardian API format: single document or multiple documents
-  const payload =
-    documents.length === 1
-      ? { document: documents[0].document, filename: documents[0].filename }
-      : {
-          documents: documents.map((d) => ({
-            document: d.document,
-            filename: d.filename,
-          })),
-        };
+  // GitGuardian API format
+  let payload;
+  if (useMultiscan || documents.length > 1) {
+    // Multi-scan format: always use array of documents
+    payload = documents.map((d) => ({
+      document: d.document,
+      filename: d.filename,
+    }));
+  } else {
+    // Single scan format: unwrap single document
+    payload = {
+      document: documents[0].document,
+      filename: documents[0].filename,
+    };
+  }
 
   logger.warn('GitGuardian Request:', {
     endpoint,
     documentCount: documents.length,
-    payloadJSON: JSON.stringify(payload, null, 2),
+    useMultiscan,
+    payloadSize: JSON.stringify(payload).length,
   });
 
   try {

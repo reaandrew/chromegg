@@ -463,6 +463,66 @@ describe('FieldTracker', () => {
 
       expect(result).toBeNull();
     });
+
+    test('finds field using chunk field IDs by searching for match text', () => {
+      fieldTracker = new FieldTracker();
+
+      // Create DOM fields
+      const field1 = document.createElement('input');
+      field1.type = 'text';
+      field1.value = 'Bearer token123';
+      field1.setAttribute('data-gg-id', 'field-0');
+      document.body.appendChild(field1);
+
+      const field2 = document.createElement('input');
+      field2.type = 'text';
+      field2.value = 'no secrets here';
+      field2.setAttribute('data-gg-id', 'field-1');
+      document.body.appendChild(field2);
+
+      const chunkFieldIds = ['field-0', 'field-1'];
+      const match = { match: 'token123', line_start: 2, line_end: 2 };
+
+      // Build field value cache for performance
+      const fieldValueCache = new Map();
+      fieldValueCache.set('field-0', 'Bearer token123');
+      fieldValueCache.set('field-1', 'no secrets here');
+
+      // When chunk field IDs are provided, should use text search instead of line numbers
+      const result = fieldTracker.findFieldIdForMatch(
+        match,
+        new Map(),
+        chunkFieldIds,
+        fieldValueCache
+      );
+
+      expect(result).toBe('field-0');
+    });
+
+    test('returns null when match text not found in chunk fields', () => {
+      fieldTracker = new FieldTracker();
+
+      const field1 = document.createElement('input');
+      field1.type = 'text';
+      field1.value = 'some value';
+      field1.setAttribute('data-gg-id', 'field-0');
+      document.body.appendChild(field1);
+
+      const chunkFieldIds = ['field-0'];
+      const match = { match: 'nonexistent', line_start: 2, line_end: 2 };
+
+      const fieldValueCache = new Map();
+      fieldValueCache.set('field-0', 'some value');
+
+      const result = fieldTracker.findFieldIdForMatch(
+        match,
+        new Map(),
+        chunkFieldIds,
+        fieldValueCache
+      );
+
+      expect(result).toBeNull();
+    });
   });
 
   describe('updateFieldBorders', () => {
@@ -526,6 +586,55 @@ describe('FieldTracker', () => {
       fieldTracker.updateFieldBorders(scanResult, fieldMap);
 
       expect(input.classList.contains('chromegg-no-secret')).toBe(true);
+    });
+
+    test('handles large number of fields with batched updates', (done) => {
+      fieldTracker = new FieldTracker();
+
+      const fieldMap = new Map();
+      const fieldsWithSecrets = [];
+
+      // Create 250 fields (more than BATCH_SIZE of 100)
+      for (let i = 0; i < 250; i++) {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = i % 50 === 0 ? 'Bearer secret123' : 'normal value';
+        input.setAttribute('data-gg-id', `field-${i}`);
+        document.body.appendChild(input);
+        fieldMap.set(`field-${i}`, input);
+
+        if (i % 50 === 0) {
+          fieldsWithSecrets.push(`field-${i}`);
+        }
+      }
+
+      const policyBreaks = fieldsWithSecrets.map((fieldId) => ({
+        type: 'Bearer Token',
+        matches: [{ match: 'secret123', line_start: 1, line_end: 1 }],
+        _chunkFieldIds: [fieldId],
+      }));
+
+      const scanResult = {
+        policy_breaks: policyBreaks,
+        policy_break_count: policyBreaks.length,
+      };
+
+      fieldTracker.updateFieldBorders(scanResult, fieldMap);
+
+      // Wait for batched updates to complete
+      setTimeout(() => {
+        // Check that fields with secrets got red borders
+        fieldsWithSecrets.forEach((fieldId) => {
+          const field = document.querySelector(`[data-gg-id="${fieldId}"]`);
+          expect(field.classList.contains('chromegg-secret-found')).toBe(true);
+        });
+
+        // Check that fields without secrets got green borders
+        const greenField = document.querySelector('[data-gg-id="field-1"]');
+        expect(greenField.classList.contains('chromegg-no-secret')).toBe(true);
+
+        done();
+      }, 100);
     });
   });
 

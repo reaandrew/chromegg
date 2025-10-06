@@ -5,6 +5,7 @@ import path from 'path';
 
 const filesToProcess = [
   'dist/badge.js',
+  'dist/chunker.js',
   'dist/scanner.js',
   'dist/content.js'
 ];

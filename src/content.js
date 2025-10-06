@@ -312,13 +312,14 @@ class FieldTracker {
     // Handle both single document response and multi-document response
     // Single document: { policy_breaks: [...], policy_break_count: 0 }
     // Multi document: { scan_results: [{ policy_breaks: [...] }] }
+    // Chunked scan: { policy_breaks: [...], _chunkFieldIds: [...] } (already combined)
     let policyBreaks;
-    if (scanResult.scan_results && scanResult.scan_results.length > 0) {
-      // Multi-document response
-      policyBreaks = scanResult.scan_results[0].policy_breaks || [];
-    } else if (scanResult.policy_breaks !== undefined) {
-      // Single document response
+    if (scanResult.policy_breaks !== undefined) {
+      // Single document OR chunked scan (already combined by scanner.js)
       policyBreaks = scanResult.policy_breaks || [];
+    } else if (scanResult.scan_results && scanResult.scan_results.length > 0) {
+      // Multi-document response (not chunked - just multiple files)
+      policyBreaks = scanResult.scan_results[0].policy_breaks || [];
     } else {
       logger.warn('No policy_breaks found in response');
       return;
@@ -326,14 +327,38 @@ class FieldTracker {
 
     logger.warn('Policy breaks found:', policyBreaks.length);
 
+    // Build a cache of field values to avoid repeated DOM queries
+    const fieldValueCache = new Map();
+    for (const [fieldId, field] of fieldMap.entries()) {
+      const value =
+        field.contentEditable === 'true'
+          ? field.textContent || ''
+          : field.value || '';
+      fieldValueCache.set(fieldId, value);
+    }
+
     // Extract field IDs that have secrets and their matches
     const fieldsWithSecrets = new Map(); // fieldId -> matches[]
-    policyBreaks.forEach((policyBreak) => {
+    policyBreaks.forEach((policyBreak, idx) => {
       const matches = policyBreak.matches || [];
+      // Get chunk field IDs if this came from a chunked scan
+      const chunkFieldIds = policyBreak._chunkFieldIds || null;
+
+      logger.warn(
+        `Policy break ${idx}: ${matches.length} matches, chunkFieldIds: ${chunkFieldIds ? chunkFieldIds.length : 'none'}`
+      );
+
       matches.forEach((match) => {
-        // Parse the match to find which field it belongs to using line numbers
-        const fieldId = this.findFieldIdForMatch(match, fieldLineMap);
-        logger.warn('Match found, mapped to fieldId:', fieldId);
+        // Parse the match to find which field it belongs to
+        const fieldId = this.findFieldIdForMatch(
+          match,
+          fieldLineMap,
+          chunkFieldIds,
+          fieldValueCache
+        );
+        logger.warn(
+          `Match "${match.match?.substring(0, 20)}..." mapped to fieldId: ${fieldId}`
+        );
         if (fieldId) {
           if (!fieldsWithSecrets.has(fieldId)) {
             fieldsWithSecrets.set(fieldId, []);
@@ -345,65 +370,114 @@ class FieldTracker {
 
     logger.warn('Fields with secrets:', Array.from(fieldsWithSecrets.keys()));
     logger.warn('FieldMap size:', fieldMap.size);
-
-    // Get all trackable fields on the page (not just the ones with content)
-    const allFields = document.querySelectorAll(
-      'input[type="text"], input[type="email"], input[type="password"], input[type="search"], input[type="tel"], input[type="url"], textarea, [contenteditable="true"]'
+    logger.warn(
+      'Sample fieldMap keys:',
+      Array.from(fieldMap.keys()).slice(0, 5)
+    );
+    logger.warn(
+      'Sample fieldsWithSecrets keys:',
+      Array.from(fieldsWithSecrets.keys()).slice(0, 5)
     );
 
-    // Update all trackable fields based on scan results
-    allFields.forEach((field, index) => {
-      if (!this.isTrackableField(field)) {
-        return;
+    // Use fieldMap directly instead of querying ALL fields on page
+    // This avoids massive DOM queries and only updates fields that were scanned
+    logger.warn('Starting field border updates...');
+    let redCount = 0;
+    let greenCount = 0;
+
+    // Batch DOM updates for performance
+    const BATCH_SIZE = 100;
+    const fieldEntries = Array.from(fieldMap.entries());
+    let currentBatch = 0;
+
+    const processBatch = () => {
+      const start = currentBatch * BATCH_SIZE;
+      const end = Math.min(start + BATCH_SIZE, fieldEntries.length);
+
+      for (let i = start; i < end; i++) {
+        const [fieldId, field] = fieldEntries[i];
+        const hasSecret = fieldsWithSecrets.has(fieldId);
+
+        if (hasSecret) {
+          // Secret found - red border
+          redCount++;
+          if (redCount <= 3) {
+            logger.warn(`RED border #${redCount}: fieldId="${fieldId}"`);
+          }
+          field.classList.add('chromegg-secret-found');
+          field.classList.remove('chromegg-no-secret');
+          this.scannedFields.set(field, { hasSecret: true });
+
+          // Apply redaction if enabled
+          this.applyRedaction(field, fieldsWithSecrets.get(fieldId));
+        } else {
+          // No secret - green border
+          greenCount++;
+          field.classList.add('chromegg-no-secret');
+          field.classList.remove('chromegg-secret-found');
+          this.scannedFields.set(field, { hasSecret: false });
+        }
       }
 
-      const fieldId =
-        field.getAttribute('data-gg-id') ||
-        this.getFieldIdentifier(field, index);
-      logger.warn('Processing field:', fieldId, field);
-
-      const value =
-        field.contentEditable === 'true'
-          ? field.textContent || ''
-          : field.value || '';
-
-      logger.warn('Field value:', value.substring(0, 50));
-
-      if (!value.trim()) {
-        // Empty fields - clear border
-        logger.warn('Empty field, clearing border');
-        field.style.border = '';
-        field.classList.remove('chromegg-secret-found', 'chromegg-no-secret');
-        return;
-      }
-
-      if (fieldsWithSecrets.has(fieldId)) {
-        // Secret found - red border
-        logger.warn('Applying RED border to:', fieldId);
-        field.classList.add('chromegg-secret-found');
-        field.classList.remove('chromegg-no-secret');
-        this.scannedFields.set(field, { hasSecret: true });
-
-        // Apply redaction if enabled
-        this.applyRedaction(field, fieldsWithSecrets.get(fieldId));
+      currentBatch++;
+      if (end < fieldEntries.length) {
+        // More batches to process
+        requestAnimationFrame(processBatch);
       } else {
-        // No secret - green border
-        logger.warn('Applying GREEN border to:', fieldId);
-        field.classList.add('chromegg-no-secret');
-        field.classList.remove('chromegg-secret-found');
-        this.scannedFields.set(field, { hasSecret: false });
+        logger.warn(
+          `Border updates complete: ${redCount} RED, ${greenCount} GREEN`
+        );
       }
-    });
+    };
+
+    // Start processing batches
+    processBatch();
   }
 
   /**
-   * Find which field a match belongs to based on line numbers in YAML
+   * Find which field a match belongs to
    * @param {Object} match - GitGuardian match object with line_start/line_end
    * @param {Map} fieldLineMap - Map of field IDs to their line ranges
+   * @param {Array} chunkFieldIds - Field IDs from the chunk (if using chunked scan)
    * @returns {string|null} Field ID or null
    */
-  findFieldIdForMatch(match, fieldLineMap) {
-    // Use line numbers from GitGuardian to find which field the match belongs to
+  findFieldIdForMatch(
+    match,
+    fieldLineMap,
+    chunkFieldIds = null,
+    fieldValueCache = null
+  ) {
+    // If we have chunk field IDs, the match came from a chunked scan
+    // In this case, we can't use line numbers (they're relative to chunk)
+    // Instead, we search for the match text in fields from this chunk
+    if (chunkFieldIds && chunkFieldIds.length > 0) {
+      const matchText = match.match || '';
+
+      // Try to find which field in this chunk contains the match
+      for (const fieldId of chunkFieldIds) {
+        // Use cache if available to avoid DOM queries
+        let fieldValue;
+        if (fieldValueCache && fieldValueCache.has(fieldId)) {
+          fieldValue = fieldValueCache.get(fieldId);
+        } else {
+          const field = document.querySelector(`[data-gg-id="${fieldId}"]`);
+          if (field) {
+            fieldValue =
+              field.contentEditable === 'true'
+                ? field.textContent || ''
+                : field.value || '';
+          }
+        }
+
+        if (fieldValue && fieldValue.includes(matchText)) {
+          return fieldId;
+        }
+      }
+
+      return null;
+    }
+
+    // Non-chunked scan: use line numbers from GitGuardian
     const matchLineStart = match.line_start;
     const matchLineEnd = match.line_end;
 
