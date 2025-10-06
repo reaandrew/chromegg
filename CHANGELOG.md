@@ -1,3 +1,9 @@
+## [1.4.0](https://github.com/reaandrew/chromegg/compare/v1.3.0...v1.4.0) (2025-10-06)
+
+### Features
+
+* Add YAML chunking and multiscan support for large forms ([d97e807](https://github.com/reaandrew/chromegg/commit/d97e8072891897a4815a7332e20db3db9e612946))
+
 ## [1.3.0](https://github.com/reaandrew/chromegg/compare/v1.2.0...v1.3.0) (2025-10-06)
 
 ### Features
