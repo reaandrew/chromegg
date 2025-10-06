@@ -166,9 +166,12 @@ Before each commit, Husky automatically:
 
 GitHub Actions workflow runs on every push and PR:
 
-1. **Initial Checks** - Linting and unit tests
-2. **Semgrep** - Security analysis
-3. **Release** (main branch only) - Semantic versioning and changelog generation
+1. **Initial Checks** - Linting and unit tests with coverage reporting
+2. **Semgrep** - Security analysis for code vulnerabilities
+3. **GitGuardian Repository History Scan** - Scans entire repository history for secrets
+4. **Release** (main branch only) - Semantic versioning and changelog generation
+
+All jobs run with concurrency control to cancel in-progress runs when new commits are pushed.
 
 ### Security Features
 
