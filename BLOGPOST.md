@@ -63,8 +63,13 @@ The content script sends a message to the background worker:
 ```javascript
 chrome.runtime.sendMessage(
   {
-    action: 'scanSecrets',
-    documents: documents,
+    action: 'scanContent',
+    data: {
+      apiUrl,
+      apiKey,
+      documents,
+      useMultiscan
+    }
   },
   (response) => {
     // Handle scan results
@@ -83,31 +88,37 @@ This approach worked beautifully for typical forms. But what about edge cases? T
 The problem? GitGuardian's API has payload size limits. Sending 2MB in a single request would fail. This is where chunking became necessary:
 
 ```javascript
-export class ContentChunker {
-  static chunkDocuments(documents, maxChunkSize = 1024 * 1024) {
-    const chunks = [];
-    let currentChunk = [];
-    let currentSize = 0;
-
-    for (const doc of documents) {
-      const docSize = this.estimateDocumentSize(doc);
-
-      if (currentSize + docSize > maxChunkSize && currentChunk.length > 0) {
-        chunks.push(currentChunk);
-        currentChunk = [];
-        currentSize = 0;
-      }
-
-      currentChunk.push(doc);
-      currentSize += docSize;
-    }
-
-    if (currentChunk.length > 0) {
-      chunks.push(currentChunk);
-    }
-
-    return chunks;
+export function chunkYaml(yamlContent, baseFilename = 'form_data') {
+  // If already under the limit, return as single chunk
+  if (getByteSize(yamlContent) <= MAX_CHUNK_SIZE) {
+    const fieldIds = extractFieldIds(yamlContent);
+    return [{ document: yamlContent, filename: `${baseFilename}.yaml`, fieldIds }];
   }
+
+  // Split YAML into individual field entries
+  const fieldEntries = splitYamlFields(yamlContent);
+  const chunks = [];
+  let currentChunk = [];
+  let currentSize = 0;
+
+  for (const entry of fieldEntries) {
+    const entrySize = getByteSize(entry.yaml);
+
+    if (currentSize + entrySize > MAX_CHUNK_SIZE && currentChunk.length > 0) {
+      chunks.push(createChunkObject(currentChunk, baseFilename, chunks.length));
+      currentChunk = [];
+      currentSize = 0;
+    }
+
+    currentChunk.push(entry);
+    currentSize += entrySize;
+  }
+
+  if (currentChunk.length > 0) {
+    chunks.push(createChunkObject(currentChunk, baseFilename, chunks.length));
+  }
+
+  return chunks;
 }
 ```
 
@@ -159,7 +170,7 @@ The final design uses only red borders for fields containing secrets. Clean fiel
 
 ## Testing Strategy
 
-The project maintains 90%+ test coverage with comprehensive unit tests. Two test pages proved essential:
+The project maintains comprehensive unit tests with 90%+ statement and function coverage. Two test pages proved essential:
 
 **test-page.html**: A standard form with various input types (text, email, password, textarea, contenteditable). This tests basic functionality—can we detect an AWS key in a text field? Does the border appear correctly?
 

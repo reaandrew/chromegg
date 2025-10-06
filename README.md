@@ -1,6 +1,6 @@
 # Chromegg
 
-A Chrome extension that scans form fields for secrets using GitGuardian API. Built with TDD (Test-Driven Development) and security best practices.
+A Chrome extension that scans form fields for secrets using GitGuardian API. Built with comprehensive testing and security best practices.
 
 ## Features
 
@@ -11,7 +11,7 @@ A Chrome extension that scans form fields for secrets using GitGuardian API. Bui
 
 ### Operating Modes
 - **Manual mode** (default) - Scan triggered by clicking extension icon
-- **Continuous mode** - Automatic scanning on field blur events
+- **Continuous mode** - Automatic scanning on field value changes
 
 ### Performance & Scalability
 - **Field aggregation** - Scans all fields in single API request (reduces token usage)
@@ -69,10 +69,10 @@ A Chrome extension that scans form fields for secrets using GitGuardian API. Bui
      - **API keys**: `AKIAIOSFODNN7EXAMPLE` (AWS example)
      - **Passwords**: `MySecretPassword123!`
      - **Regular text**: `Hello World`
-   - Click away from the field (blur event triggers scan)
+   - Change field values to trigger scan (in continuous mode)
    - Observe the results:
      - **Red border** 🔴 = Secret detected
-     - **Green border** 🟢 = No secrets found
+     - **No border** = No secrets found
 
 ## Installation
 
@@ -152,7 +152,7 @@ chromegg/
 
 ### Testing
 
-This project follows Test-Driven Development (TDD) principles with 83%+ code coverage:
+This project maintains comprehensive test coverage with 90%+ statement and function coverage:
 
 ```bash
 # Run tests
@@ -210,8 +210,8 @@ This extension follows Chrome extension security best practices:
 
 ## How It Works
 
-1. **Field Detection** - Content script monitors blur events on all form fields
-2. **Data Collection** - On blur, collects all form field values
+1. **Field Detection** - Content script monitors value changes on all form fields
+2. **Data Collection** - On change, collects all form field values
 3. **API Scanning** - Sends data to GitGuardian API via background service worker
 4. **Visual Feedback** - Applies red border to fields containing detected secrets:
    - `chromegg-secret-found` - Red border for fields with secrets
@@ -250,10 +250,10 @@ The included `test-page.html` provides a test environment:
    - Try entering API keys: `AKIAIOSFODNN7EXAMPLE`
    - Try passwords: `MySecretPassword123!`
    - Try regular text: `Hello World`
-5. Click away from the field (blur event)
+5. Change field values to trigger scanning
 6. Observe the border colors:
    - Red = Secret detected
-   - Green = No secrets found
+   - No border = No secrets found
 
 ## Contributing
 
@@ -285,5 +285,5 @@ MIT
 
 - Built with Chrome Extension Manifest V3
 - GitGuardian API for secret detection
-- Test-Driven Development with Jest
+- Comprehensive testing with Jest
 - Semantic Release for automated versioning
