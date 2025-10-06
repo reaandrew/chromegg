@@ -212,10 +212,9 @@ class FieldTracker {
   }
 
   /**
-   * Scan a specific field for secrets
-   * @param {HTMLElement} field - The field to scan
+   * Scan all fields on the page for secrets
    */
-  async scanField(_field) {
+  async scanAllFields() {
     if (!this.scanner) {
       return;
     }
@@ -240,9 +239,18 @@ class FieldTracker {
       // Update borders for all scanned fields
       this.updateFieldBorders(result, formData.fieldMap);
     } catch (error) {
-      console.error('Error scanning field:', error);
+      console.error('Error scanning fields:', error);
       // On error, don't apply any styling
     }
+  }
+
+  /**
+   * Scan a specific field for secrets
+   * @param {HTMLElement} field - The field to scan
+   */
+  async scanField(_field) {
+    // Just call scanAllFields since we scan all fields together anyway
+    return this.scanAllFields();
   }
 
   /**
@@ -419,6 +427,16 @@ if (
         const scanner = new GitGuardianScanner(result.apiUrl, result.apiKey);
         const tracker = new FieldTracker(scanner);
         tracker.init();
+
+        // Scan all fields when DOM is fully loaded
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', () => {
+            tracker.scanAllFields();
+          });
+        } else {
+          // DOM already loaded, scan immediately
+          tracker.scanAllFields();
+        }
       } else {
         console.error('GitGuardianScanner not available');
         // Fall back to tracker without scanner
