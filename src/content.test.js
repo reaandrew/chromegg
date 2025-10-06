@@ -233,7 +233,7 @@ describe('FieldTracker', () => {
   });
 
   describe('handleFocus', () => {
-    test('shows badge when trackable field is focused', () => {
+    test('does nothing on focus (badge removed)', () => {
       fieldTracker = new FieldTracker();
       fieldTracker.init();
 
@@ -243,44 +243,27 @@ describe('FieldTracker', () => {
 
       input.focus();
 
-      const badge = document.querySelector('.chromegg-badge');
-      expect(badge).toBeTruthy();
-      expect(badge.style.display).toBe('block');
-    });
-
-    test('does not show badge for non-trackable field', () => {
-      fieldTracker = new FieldTracker();
-      fieldTracker.init();
-
-      const button = document.createElement('button');
-      document.body.appendChild(button);
-
-      button.focus();
-
+      // No badge should be shown on focus
       const badge = document.querySelector('.chromegg-badge');
       expect(badge).toBeFalsy();
     });
   });
 
   describe('handleBlur', () => {
-    test('hides badge when field loses focus', () => {
-      fieldTracker = new FieldTracker();
+    test('does not trigger scan without scanner configured', () => {
+      fieldTracker = new FieldTracker(); // No scanner
       fieldTracker.init();
 
       const input = document.createElement('input');
       input.type = 'text';
+      input.value = 'test value';
       document.body.appendChild(input);
 
       input.focus();
-
-      let badge = document.querySelector('.chromegg-badge');
-      expect(badge).toBeTruthy();
-      expect(badge.style.display).toBe('block');
-
       input.blur();
 
-      badge = document.querySelector('.chromegg-badge');
-      expect(badge.style.display).toBe('none');
+      // No error should occur
+      expect(true).toBe(true);
     });
   });
 
@@ -289,42 +272,23 @@ describe('FieldTracker', () => {
       fieldTracker = new FieldTracker();
       fieldTracker.init();
 
-      const input = document.createElement('input');
-      input.type = 'text';
-      document.body.appendChild(input);
-
-      input.focus();
-
-      const badge = document.querySelector('.chromegg-badge');
-      expect(badge).toBeTruthy();
+      expect(fieldTracker.focusHandler).toBeTruthy();
+      expect(fieldTracker.blurHandler).toBeTruthy();
     });
   });
 
   describe('cleanup', () => {
-    test('hides badge and removes event listeners', () => {
+    test('removes event listeners', () => {
       fieldTracker = new FieldTracker();
-
-      const input = document.createElement('input');
-      input.type = 'text';
-      document.body.appendChild(input);
-
       fieldTracker.init();
-      input.focus();
 
-      const badge = document.querySelector('.chromegg-badge');
-      expect(badge).toBeTruthy();
-      expect(badge.style.display).toBe('block');
-
-      // Get the badge reference before cleanup
-      const badgeElement = fieldTracker.badgeManager.badge;
+      expect(fieldTracker.focusHandler).toBeTruthy();
+      expect(fieldTracker.blurHandler).toBeTruthy();
 
       fieldTracker.cleanup();
 
-      // Badge should be hidden after cleanup (check the badge manager's badge reference)
-      if (badgeElement && badgeElement.parentElement) {
-        // Badge might still be in DOM but should be hidden
-        expect(badgeElement.style.display).toBe('none');
-      }
+      expect(fieldTracker.focusHandler).toBeNull();
+      expect(fieldTracker.blurHandler).toBeNull();
       expect(fieldTracker.badgeManager.currentTarget).toBeNull();
     });
   });

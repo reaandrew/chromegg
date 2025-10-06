@@ -429,4 +429,8 @@ if (
   });
 }
 
-// No exports for browser - classes are in global scope
+// Export for tests - make classes available on globalThis
+if (typeof globalThis !== 'undefined') {
+  globalThis.BadgeManager = BadgeManager;
+  globalThis.FieldTracker = FieldTracker;
+}

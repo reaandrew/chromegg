@@ -9,10 +9,19 @@ describe('GitGuardianScanner', () => {
   beforeEach(() => {
     originalFetch = global.fetch;
     scanner = new GitGuardianScanner(apiUrl, apiKey);
+
+    // Mock chrome API
+    global.chrome = {
+      runtime: {
+        sendMessage: null, // Will be set in individual tests
+        lastError: null,
+      },
+    };
   });
 
   afterEach(() => {
     global.fetch = originalFetch;
+    delete global.chrome;
   });
 
   describe('constructor', () => {
@@ -37,63 +46,53 @@ describe('GitGuardianScanner', () => {
       ).rejects.toThrow('GitGuardian API URL and key are required');
     });
 
-    test('makes POST request to GitGuardian API', async () => {
+    test('sends message to background script via chrome.runtime', async () => {
       const mockResponse = {
-        scan_results: [
-          {
-            filename: 'test.txt',
-            policies_break_count: 0,
-            policy_breaks: [],
-          },
-        ],
+        policy_breaks: [],
+        policy_break_count: 0,
       };
 
-      let capturedUrl;
-      let capturedOptions;
-
-      global.fetch = async (url, options) => {
-        capturedUrl = url;
-        capturedOptions = options;
-        return {
-          ok: true,
-          json: async () => mockResponse,
-        };
+      let capturedMessage;
+      global.chrome.runtime.sendMessage = (message, callback) => {
+        capturedMessage = message;
+        callback({ success: true, data: mockResponse });
       };
 
-      const documents = [{ document: 'test content', filename: 'test.txt' }];
-      const result = await scanner.scanContent(documents);
+      const documentData = { document: 'test content', filename: 'test.txt' };
+      const result = await scanner.scanContent(documentData);
 
-      expect(capturedUrl).toBe(`${apiUrl}/v1/scan`);
-      expect(capturedOptions.method).toBe('POST');
-      expect(capturedOptions.headers['Content-Type']).toBe('application/json');
-      expect(capturedOptions.headers.Authorization).toBe(`Token ${apiKey}`);
+      expect(capturedMessage.action).toBe('scanContent');
+      expect(capturedMessage.data.apiUrl).toBe(apiUrl);
+      expect(capturedMessage.data.apiKey).toBe(apiKey);
       expect(result).toEqual(mockResponse);
     });
 
-    test('handles API error response', async () => {
-      global.fetch = async () => ({
-        ok: false,
-        status: 401,
-        statusText: 'Unauthorized',
-        text: async () => 'Invalid API key',
-      });
-
-      const documents = [{ document: 'test', filename: 'test.txt' }];
-
-      await expect(scanner.scanContent(documents)).rejects.toThrow(
-        'GitGuardian API error: 401 Unauthorized - Invalid API key'
-      );
-    });
-
-    test('handles network error', async () => {
-      global.fetch = async () => {
-        throw new Error('Network error');
+    test('handles chrome runtime error', async () => {
+      global.chrome.runtime.lastError = {
+        message: 'Extension context invalidated',
+      };
+      global.chrome.runtime.sendMessage = (message, callback) => {
+        callback({});
       };
 
-      const documents = [{ document: 'test', filename: 'test.txt' }];
+      const documentData = { document: 'test', filename: 'test.txt' };
 
-      await expect(scanner.scanContent(documents)).rejects.toThrow(
-        'Network error'
+      await expect(scanner.scanContent(documentData)).rejects.toThrow(
+        'Extension context invalidated'
+      );
+
+      global.chrome.runtime.lastError = null;
+    });
+
+    test('handles API error from background script', async () => {
+      global.chrome.runtime.sendMessage = (message, callback) => {
+        callback({ success: false, error: 'API key invalid' });
+      };
+
+      const documentData = { document: 'test', filename: 'test.txt' };
+
+      await expect(scanner.scanContent(documentData)).rejects.toThrow(
+        'API key invalid'
       );
     });
   });
