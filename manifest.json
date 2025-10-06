@@ -6,8 +6,7 @@
   "permissions": ["storage"],
   "host_permissions": ["https://api.gitguardian.com/*"],
   "background": {
-    "service_worker": "background.js",
-    "type": "module"
+    "service_worker": "background.js"
   },
   "options_page": "options.html",
   "content_scripts": [
