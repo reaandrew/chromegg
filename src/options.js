@@ -3,16 +3,20 @@
 const saveButton = document.getElementById('saveButton');
 const apiUrlInput = document.getElementById('apiUrl');
 const apiKeyInput = document.getElementById('apiKey');
+const debugModeCheckbox = document.getElementById('debugMode');
 const statusDiv = document.getElementById('status');
 
 // Load saved credentials when page opens
 document.addEventListener('DOMContentLoaded', () => {
-  chrome.storage.sync.get(['apiUrl', 'apiKey'], (result) => {
+  chrome.storage.sync.get(['apiUrl', 'apiKey', 'debugMode'], (result) => {
     if (result.apiUrl) {
       apiUrlInput.value = result.apiUrl;
     }
     if (result.apiKey) {
       apiKeyInput.value = result.apiKey;
+    }
+    if (result.debugMode !== undefined) {
+      debugModeCheckbox.checked = result.debugMode;
     }
   });
 });
@@ -21,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
 saveButton.addEventListener('click', () => {
   const apiUrl = apiUrlInput.value.trim();
   const apiKey = apiKeyInput.value.trim();
+  const debugMode = debugModeCheckbox.checked;
 
   if (!apiUrl) {
     showStatus('Please enter the GitGuardian API URL', 'error');
@@ -32,16 +37,19 @@ saveButton.addEventListener('click', () => {
     return;
   }
 
-  chrome.storage.sync.set({ apiUrl: apiUrl, apiKey: apiKey }, () => {
-    if (chrome.runtime.lastError) {
-      showStatus(
-        'Error saving settings: ' + chrome.runtime.lastError.message,
-        'error'
-      );
-    } else {
-      showStatus('Settings saved successfully!', 'success');
+  chrome.storage.sync.set(
+    { apiUrl: apiUrl, apiKey: apiKey, debugMode: debugMode },
+    () => {
+      if (chrome.runtime.lastError) {
+        showStatus(
+          'Error saving settings: ' + chrome.runtime.lastError.message,
+          'error'
+        );
+      } else {
+        showStatus('Settings saved successfully!', 'success');
+      }
     }
-  });
+  );
 });
 
 // Show status message

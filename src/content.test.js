@@ -312,8 +312,24 @@ describe('FieldTracker', () => {
       const result = fieldTracker.collectFormData();
 
       expect(result).toBeTruthy();
-      expect(result.document).toContain('test value 1');
-      expect(result.document).toContain('test@example.com');
+
+      // Parse the JSON document
+      const parsed = JSON.parse(result.document);
+      expect(parsed.fields).toHaveLength(2);
+
+      // Check base64 encoded values
+      const field1 = parsed.fields.find((f) => f.id === 'input_text_field1');
+      const field2 = parsed.fields.find((f) => f.id === 'input_email_email');
+
+      expect(field1).toBeTruthy();
+      expect(field2).toBeTruthy();
+
+      // Decode and verify values
+      const decodedValue1 = decodeURIComponent(escape(atob(field1.value)));
+      const decodedValue2 = decodeURIComponent(escape(atob(field2.value)));
+
+      expect(decodedValue1).toBe('test value 1');
+      expect(decodedValue2).toBe('test@example.com');
       expect(result.fieldMap.size).toBe(2);
     });
 

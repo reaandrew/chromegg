@@ -6,7 +6,8 @@ import path from 'path';
 const filesToProcess = [
   'dist/badge.js',
   'dist/scanner.js',
-  'dist/background.js'
+  'dist/background.js',
+  'dist/logger.js'
 ];
 
 filesToProcess.forEach(file => {

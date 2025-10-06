@@ -3,6 +3,8 @@
  * Handles GitGuardian API requests to avoid CORS issues
  */
 
+import { logger } from './logger.js';
+
 // Listen for messages from content scripts
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'scanContent') {
@@ -41,12 +43,11 @@ export async function handleScanRequest(data) {
           })),
         };
 
-  // Logging disabled for production - use for debugging:
-  // console.warn('GitGuardian Request:', {
-  //   endpoint,
-  //   documentCount: documents.length,
-  //   payloadJSON: JSON.stringify(payload, null, 2)
-  // });
+  logger.warn('GitGuardian Request:', {
+    endpoint,
+    documentCount: documents.length,
+    payloadJSON: JSON.stringify(payload, null, 2),
+  });
 
   try {
     const response = await fetch(endpoint, {
@@ -66,11 +67,10 @@ export async function handleScanRequest(data) {
     }
 
     const result = await response.json();
-    // Logging disabled for production - use for debugging:
-    // console.warn('GitGuardian Response:', JSON.stringify(result, null, 2));
+    logger.warn('GitGuardian Response:', JSON.stringify(result, null, 2));
     return result;
   } catch (error) {
-    console.error('GitGuardian scan error:', error);
+    logger.error('GitGuardian scan error:', error);
     throw error;
   }
 }

@@ -6,13 +6,14 @@
   "permissions": ["storage"],
   "host_permissions": ["https://api.gitguardian.com/*"],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "options_page": "options.html",
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["scanner.js", "content.js"],
+      "js": ["logger.js", "scanner.js", "content.js"],
       "css": ["badge.css"],
       "run_at": "document_idle"
     }

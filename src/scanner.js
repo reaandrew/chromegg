@@ -3,6 +3,8 @@
  * Handles communication with GitGuardian API for secret scanning
  */
 
+import { logger } from './logger.js';
+
 class GitGuardianScanner {
   constructor(apiUrl, apiKey) {
     this.apiUrl = apiUrl;
@@ -20,8 +22,7 @@ class GitGuardianScanner {
       throw new Error('GitGuardian API URL and key are required');
     }
 
-    // Logging disabled for production - use for debugging:
-    // console.warn('Scanner.scanContent received:', documentData);
+    logger.warn('Scanner.scanContent received:', documentData);
 
     // Prepare single document for GitGuardian API
     const documents = [
@@ -31,8 +32,7 @@ class GitGuardianScanner {
       },
     ];
 
-    // Logging disabled for production - use for debugging:
-    // console.warn('Scanner.scanContent prepared documents:', documents);
+    logger.warn('Scanner.scanContent prepared documents:', documents);
 
     const messageData = {
       action: 'scanContent',
@@ -43,8 +43,10 @@ class GitGuardianScanner {
       },
     };
 
-    // Logging disabled for production - use for debugging:
-    // console.warn('Sending message to background:', JSON.stringify(messageData, null, 2));
+    logger.warn(
+      'Sending message to background:',
+      JSON.stringify(messageData, null, 2)
+    );
 
     // Send request to background script to avoid CORS
     return new Promise((resolve, reject) => {

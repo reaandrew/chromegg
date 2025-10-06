@@ -44,6 +44,16 @@
         outline: none;
         border-color: #4caf50;
       }
+      .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      input[type='checkbox'] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+      }
       button {
         background-color: #4caf50;
         color: white;
@@ -113,6 +123,13 @@
         placeholder="Enter your GitGuardian API key"
         autocomplete="off"
       />
+    </div>
+
+    <div class="form-group">
+      <div class="checkbox-group">
+        <input type="checkbox" id="debugMode" />
+        <label for="debugMode" style="margin-bottom: 0;">Enable Debug Logging</label>
+      </div>
     </div>
 
     <button id="saveButton">Save Settings</button>

@@ -1,3 +1,5 @@
+import { logger } from './logger.js';
+
 class BadgeManager {
   constructor() {
     this.badge = null;
@@ -149,14 +151,14 @@ class FieldTracker {
 
   /**
    * Collect all form field values on the page and combine into single document
-   * @returns {Object} Single document object with combined form data
+   * @returns {Object} Single document object with combined form data in JSON format with base64-encoded values
    */
   collectFormData() {
     const fields = document.querySelectorAll(
       'input[type="text"], input[type="email"], input[type="password"], input[type="search"], input[type="tel"], input[type="url"], textarea, [contenteditable="true"]'
     );
 
-    let combinedContent = '';
+    const jsonFields = [];
     const fieldMap = new Map();
 
     fields.forEach((field, index) => {
@@ -180,17 +182,26 @@ class FieldTracker {
       // Store field reference for later
       fieldMap.set(fieldId, field);
 
-      // Add to combined document with identifier
-      combinedContent += `\n### FIELD: ${fieldId} ###\n${value}\n`;
+      // Base64 encode the value
+      const encodedValue = btoa(unescape(encodeURIComponent(value)));
+
+      // Add to JSON structure
+      jsonFields.push({
+        id: fieldId,
+        value: encodedValue,
+      });
     });
 
-    if (combinedContent.trim() === '') {
+    if (jsonFields.length === 0) {
       return null;
     }
 
+    // Create JSON document
+    const jsonDocument = JSON.stringify({ fields: jsonFields }, null, 2);
+
     return {
-      document: combinedContent,
-      filename: `form_data_${Date.now()}.txt`,
+      document: jsonDocument,
+      filename: `form_data_${Date.now()}.json`,
       fieldMap: fieldMap,
     };
   }
@@ -227,19 +238,17 @@ class FieldTracker {
         return;
       }
 
-      // Logging disabled for production - use for debugging:
-      // console.warn('Scanning with formData:', formData);
+      logger.warn('Scanning with formData:', formData);
 
       // Scan the combined document
       const result = await this.scanner.scanContent(formData);
 
-      // Logging disabled for production - use for debugging:
-      // console.warn('Scan result received:', result);
+      logger.warn('Scan result received:', result);
 
       // Update borders for all scanned fields
       this.updateFieldBorders(result, formData.fieldMap);
     } catch (error) {
-      console.error('Error scanning fields:', error);
+      logger.error('Error scanning fields:', error);
       // On error, don't apply any styling
     }
   }
@@ -259,12 +268,10 @@ class FieldTracker {
    * @param {Map} fieldMap - Map of field IDs to field elements
    */
   updateFieldBorders(scanResult, fieldMap) {
-    // Logging disabled for production - use for debugging:
-    // console.warn('updateFieldBorders called with:', { scanResult, fieldMap });
+    logger.warn('updateFieldBorders called with:', { scanResult, fieldMap });
 
     if (!scanResult) {
-      // Logging disabled for production - use for debugging:
-      // console.warn('No scan result, returning early');
+      logger.warn('No scan result, returning early');
       return;
     }
 
@@ -279,13 +286,11 @@ class FieldTracker {
       // Single document response
       policyBreaks = scanResult.policy_breaks || [];
     } else {
-      // Logging disabled for production - use for debugging:
-      // console.warn('No policy_breaks found in response');
+      logger.warn('No policy_breaks found in response');
       return;
     }
 
-    // Logging disabled for production - use for debugging:
-    // console.warn('Policy breaks found:', policyBreaks.length);
+    logger.warn('Policy breaks found:', policyBreaks.length);
 
     // Extract field IDs that have secrets
     const fieldsWithSecrets = new Set();
@@ -295,17 +300,15 @@ class FieldTracker {
         // Parse the match to find which field it belongs to
         // The match contains line numbers or the actual content
         const fieldId = this.findFieldIdForMatch(match, fieldMap);
-        // Logging disabled for production - use for debugging:
-        // console.warn('Match found, mapped to fieldId:', fieldId);
+        logger.warn('Match found, mapped to fieldId:', fieldId);
         if (fieldId) {
           fieldsWithSecrets.add(fieldId);
         }
       });
     });
 
-    // Logging disabled for production - use for debugging:
-    // console.warn('Fields with secrets:', Array.from(fieldsWithSecrets));
-    // console.warn('FieldMap size:', fieldMap.size);
+    logger.warn('Fields with secrets:', Array.from(fieldsWithSecrets));
+    logger.warn('FieldMap size:', fieldMap.size);
 
     // Get all trackable fields on the page (not just the ones with content)
     const allFields = document.querySelectorAll(
@@ -321,21 +324,18 @@ class FieldTracker {
       const fieldId =
         field.getAttribute('data-gg-id') ||
         this.getFieldIdentifier(field, index);
-      // Logging disabled for production - use for debugging:
-      // console.warn('Processing field:', fieldId, field);
+      logger.warn('Processing field:', fieldId, field);
 
       const value =
         field.contentEditable === 'true'
           ? field.textContent || ''
           : field.value || '';
 
-      // Logging disabled for production - use for debugging:
-      // console.warn('Field value:', value.substring(0, 50));
+      logger.warn('Field value:', value.substring(0, 50));
 
       if (!value.trim()) {
         // Empty fields - clear border
-        // Logging disabled for production - use for debugging:
-        // console.warn('Empty field, clearing border');
+        logger.warn('Empty field, clearing border');
         field.style.border = '';
         field.classList.remove('chromegg-secret-found', 'chromegg-no-secret');
         return;
@@ -343,15 +343,13 @@ class FieldTracker {
 
       if (fieldsWithSecrets.has(fieldId)) {
         // Secret found - red border
-        // Logging disabled for production - use for debugging:
-        // console.warn('Applying RED border to:', fieldId);
+        logger.warn('Applying RED border to:', fieldId);
         field.classList.add('chromegg-secret-found');
         field.classList.remove('chromegg-no-secret');
         this.scannedFields.set(field, { hasSecret: true });
       } else {
         // No secret - green border
-        // Logging disabled for production - use for debugging:
-        // console.warn('Applying GREEN border to:', fieldId);
+        logger.warn('Applying GREEN border to:', fieldId);
         field.classList.add('chromegg-no-secret');
         field.classList.remove('chromegg-secret-found');
         this.scannedFields.set(field, { hasSecret: false });
@@ -360,14 +358,14 @@ class FieldTracker {
   }
 
   /**
-   * Find which field a match belongs to based on the combined document structure
+   * Find which field a match belongs to based on the JSON document structure
    * @param {Object} match - GitGuardian match object
    * @param {Map} fieldMap - Map of field IDs to field elements
    * @returns {string|null} Field ID or null
    */
   findFieldIdForMatch(match, fieldMap) {
     // The match object contains the actual matched content
-    // We need to find which field contains this content
+    // GitGuardian may return the base64-encoded match or decoded match
     const matchContent = match.match || '';
 
     for (const [fieldId, field] of fieldMap.entries()) {
@@ -376,8 +374,29 @@ class FieldTracker {
           ? field.textContent || ''
           : field.value || '';
 
+      // Check if match is in the plain text value
       if (fieldValue.includes(matchContent)) {
         return fieldId;
+      }
+
+      // Also check if match is in the base64-encoded value
+      try {
+        const encodedValue = btoa(unescape(encodeURIComponent(fieldValue)));
+        if (encodedValue.includes(matchContent)) {
+          return fieldId;
+        }
+      } catch {
+        // Encoding error, skip this check
+      }
+
+      // Check if the match itself might be base64 and decode it
+      try {
+        const decodedMatch = decodeURIComponent(escape(atob(matchContent)));
+        if (fieldValue.includes(decodedMatch)) {
+          return fieldId;
+        }
+      } catch {
+        // Not valid base64, skip this check
       }
     }
 
@@ -438,7 +457,7 @@ if (
           tracker.scanAllFields();
         }
       } else {
-        console.error('GitGuardianScanner not available');
+        logger.error('GitGuardianScanner not available');
         // Fall back to tracker without scanner
         const tracker = new FieldTracker();
         tracker.init();
