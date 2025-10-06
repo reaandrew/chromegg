@@ -292,4 +292,225 @@ describe('FieldTracker', () => {
       expect(fieldTracker.badgeManager.currentTarget).toBeNull();
     });
   });
+
+  describe('collect FormData', () => {
+    test('collects text from all trackable fields', () => {
+      fieldTracker = new FieldTracker();
+
+      const input1 = document.createElement('input');
+      input1.type = 'text';
+      input1.value = 'test value 1';
+      input1.name = 'field1';
+      document.body.appendChild(input1);
+
+      const input2 = document.createElement('input');
+      input2.type = 'email';
+      input2.value = 'test@example.com';
+      input2.id = 'email';
+      document.body.appendChild(input2);
+
+      const result = fieldTracker.collectFormData();
+
+      expect(result).toBeTruthy();
+      expect(result.document).toContain('test value 1');
+      expect(result.document).toContain('test@example.com');
+      expect(result.fieldMap.size).toBe(2);
+    });
+
+    test('skips empty fields', () => {
+      fieldTracker = new FieldTracker();
+
+      const input1 = document.createElement('input');
+      input1.type = 'text';
+      input1.value = '   ';
+      document.body.appendChild(input1);
+
+      const input2 = document.createElement('input');
+      input2.type = 'text';
+      input2.value = 'has content';
+      document.body.appendChild(input2);
+
+      const result = fieldTracker.collectFormData();
+
+      expect(result).toBeTruthy();
+      expect(result.fieldMap.size).toBe(1);
+    });
+
+    test('returns null when no fields have content', () => {
+      fieldTracker = new FieldTracker();
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = '';
+      document.body.appendChild(input);
+
+      const result = fieldTracker.collectFormData();
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('getFieldIdentifier', () => {
+    test('uses field name if available', () => {
+      fieldTracker = new FieldTracker();
+
+      const input = document.createElement('input');
+      input.name = 'username';
+      input.type = 'text';
+
+      const id = fieldTracker.getFieldIdentifier(input, 0);
+
+      expect(id).toBe('input_text_username');
+    });
+
+    test('uses field id if name not available', () => {
+      fieldTracker = new FieldTracker();
+
+      const input = document.createElement('input');
+      input.id = 'email-field';
+      input.type = 'email';
+
+      const id = fieldTracker.getFieldIdentifier(input, 0);
+
+      expect(id).toBe('input_email_email-field');
+    });
+
+    test('uses field index if no name or id', () => {
+      fieldTracker = new FieldTracker();
+
+      const input = document.createElement('input');
+      input.type = 'text';
+
+      const id = fieldTracker.getFieldIdentifier(input, 5);
+
+      expect(id).toBe('input_text_field_5');
+    });
+
+    test('sanitizes special characters', () => {
+      fieldTracker = new FieldTracker();
+
+      const input = document.createElement('input');
+      input.name = 'user name!@#';
+      input.type = 'text';
+
+      const id = fieldTracker.getFieldIdentifier(input, 0);
+
+      expect(id).toBe('input_text_user_name___');
+    });
+  });
+
+  describe('findFieldIdForMatch', () => {
+    test('finds field containing match content', () => {
+      fieldTracker = new FieldTracker();
+
+      const input1 = document.createElement('input');
+      input1.value = 'no match here';
+      const input2 = document.createElement('input');
+      input2.value = 'secret123';
+
+      const fieldMap = new Map();
+      fieldMap.set('field1', input1);
+      fieldMap.set('field2', input2);
+
+      const match = { match: 'secret123' };
+      const result = fieldTracker.findFieldIdForMatch(match, fieldMap);
+
+      expect(result).toBe('field2');
+    });
+
+    test('returns null when no field matches', () => {
+      fieldTracker = new FieldTracker();
+
+      const input = document.createElement('input');
+      input.value = 'no match';
+
+      const fieldMap = new Map();
+      fieldMap.set('field1', input);
+
+      const match = { match: 'secret123' };
+      const result = fieldTracker.findFieldIdForMatch(match, fieldMap);
+
+      expect(result).toBeNull();
+    });
+
+    test('handles contenteditable fields', () => {
+      fieldTracker = new FieldTracker();
+
+      const div = document.createElement('div');
+      div.contentEditable = 'true';
+      div.textContent = 'secret content';
+
+      const fieldMap = new Map();
+      fieldMap.set('field1', div);
+
+      const match = { match: 'secret content' };
+      const result = fieldTracker.findFieldIdForMatch(match, fieldMap);
+
+      expect(result).toBe('field1');
+    });
+  });
+
+  describe('updateFieldBorders', () => {
+    test('does nothing when scanResult is null', () => {
+      fieldTracker = new FieldTracker();
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = 'test';
+      document.body.appendChild(input);
+
+      fieldTracker.updateFieldBorders(null, new Map());
+
+      expect(input.classList.contains('chromegg-secret-found')).toBe(false);
+      expect(input.classList.contains('chromegg-no-secret')).toBe(false);
+    });
+
+    test('handles single document response format', () => {
+      fieldTracker = new FieldTracker();
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = 'test';
+      input.setAttribute('data-gg-id', 'test-field');
+      document.body.appendChild(input);
+
+      const scanResult = {
+        policy_breaks: [],
+        policy_break_count: 0,
+      };
+
+      const fieldMap = new Map();
+      fieldMap.set('test-field', input);
+
+      fieldTracker.updateFieldBorders(scanResult, fieldMap);
+
+      expect(input.classList.contains('chromegg-no-secret')).toBe(true);
+    });
+
+    test('handles multi-document response format', () => {
+      fieldTracker = new FieldTracker();
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = 'test';
+      input.setAttribute('data-gg-id', 'test-field');
+      document.body.appendChild(input);
+
+      const scanResult = {
+        scan_results: [
+          {
+            policy_breaks: [],
+            policy_break_count: 0,
+          },
+        ],
+      };
+
+      const fieldMap = new Map();
+      fieldMap.set('test-field', input);
+
+      fieldTracker.updateFieldBorders(scanResult, fieldMap);
+
+      expect(input.classList.contains('chromegg-no-secret')).toBe(true);
+    });
+  });
 });

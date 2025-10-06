@@ -21,7 +21,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
  * @param {Object} data - Request data containing apiUrl, apiKey, and documents
  * @returns {Promise<Object>} Scan results
  */
-async function handleScanRequest(data) {
+export async function handleScanRequest(data) {
   const { apiUrl, apiKey, documents } = data;
 
   if (!apiUrl || !apiKey) {

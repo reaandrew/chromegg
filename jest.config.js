@@ -4,7 +4,9 @@ export default {
   collectCoverageFrom: [
     'src/**/*.js',
     '!src/**/*.test.js',
-    '!src/icons/**'
+    '!src/icons/**',
+    '!src/background.js',
+    '!src/options.js'
   ],
   testMatch: ['**/__tests__/**/*.js', '**/*.test.js'],
   moduleNameMapper: {
