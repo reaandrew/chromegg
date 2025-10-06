@@ -19,7 +19,7 @@ By the time you submit the form, your secret has left your machine. It might be 
 
 ## The Solution: Real-Time Secret Scanning
 
-Chromegg takes a proactive approach. Instead of scanning after submission, it monitors form fields and scans their contents **before** you submit. When you tab out of a field (on blur), the extension:
+Chromegg takes a proactive approach. Instead of scanning after submission, it monitors form fields and scans their contents **before** you submit. When field values change, the extension:
 
 1. Collects all form field values on the page
 2. Sends them to GitGuardian's API via a background service worker
@@ -136,13 +136,13 @@ This spreads the work across multiple animation frames, keeping the UI responsiv
 
 ## Two Modes of Operation
 
-User feedback led to an important feature addition: operating modes.
+The extension supports two operating modes:
 
-**Continuous Mode** (auto-scan): Every time you blur a field, it triggers a scan. This is great for security-conscious users who want constant protection.
+**Continuous Mode** (auto-scan): Every time a field value changes, it triggers a scan. This is great for security-conscious users who want constant protection.
 
 **Manual Mode** (default): Scanning only happens when you click the extension icon. This reduces API calls and gives users more control over when scanning occurs.
 
-![Extension settings showing continuous mode toggle, auto-redact options, and API configuration](screenshot-url-here)
+![Extension settings showing continuous mode toggle, auto-redact options, and API configuration](images/chromegg_settings_pic.png)
 
 The settings page also includes:
 - API URL configuration (defaulting to `https://api.gitguardian.com`)
@@ -153,19 +153,19 @@ The settings page also includes:
 
 ## Visual Feedback: Keeping It Simple
 
-Initially, I experimented with both red borders (secrets found) and green borders (clean fields). User testing revealed this was too noisy—green borders everywhere just created visual clutter.
+Initially, I experimented with both red borders (secrets found) and green borders (clean fields). Testing revealed this was too noisy—green borders everywhere just created visual clutter.
 
 The final design uses only red borders for fields containing secrets. Clean fields remain unchanged. This follows the principle of "silence is golden"—only alert users when there's a problem.
 
 ## Testing Strategy
 
-The project follows Test-Driven Development (TDD) principles with 90%+ code coverage. Two test pages proved essential:
+The project maintains 90%+ test coverage with comprehensive unit tests. Two test pages proved essential:
 
 **test-page.html**: A standard form with various input types (text, email, password, textarea, contenteditable). This tests basic functionality—can we detect an AWS key in a text field? Does the border appear correctly?
 
 **test-massive-page.html**: The stress test with 2,000 fields and ~2MB of data. This revealed the chunking requirement, the performance issues with DOM updates, and even uncovered a bug in how we were batching API requests.
 
-Without that massive form test, these issues would have surfaced in production—probably when someone tried using the extension on a complex enterprise form.
+It's a good job we tested this on large forms—it really helped flush out some easy wins which makes this tool a lot more compatible with the range of forms that may exist in the wild.
 
 ## Prototype Findings: Is It Viable?
 
@@ -175,17 +175,6 @@ The prototype successfully answered the core questions around viability:
 
 **Performance**: With batched DOM updates and intelligent chunking, the extension handles both simple and complex forms smoothly. The massive form test—an extreme edge case—still completes scanning and border updates in under a second.
 
-**Real-World Usage**: Early testing reveals most secret detections are from developers accidentally using production credentials during testing. The visual red border creates an immediate "oh no" moment that prevents submission.
-
-## What's Next
-
-Future enhancements I'm considering:
-
-- Offline detection for common patterns (reducing API calls)
-- Support for more GitGuardian features (custom policies, ignore lists)
-- Browser notification system for detected secrets
-- Statistics dashboard showing secret detections over time
-
 ## Try It Yourself
 
 Chromegg is open source and available on [GitHub](https://github.com/reaandrew/chromegg). The extension demonstrates several important concepts:
@@ -194,12 +183,6 @@ Chromegg is open source and available on [GitHub](https://github.com/reaandrew/c
 - Content script and service worker communication
 - Performance optimization for large-scale DOM operations
 - Real-time API integration in browser extensions
-- TDD with Jest for Chrome extensions
+- Comprehensive testing with Jest for Chrome extensions
 
 Whether you're building Chrome extensions, integrating with security APIs, or just interested in preventing secret leakage, I hope you find the project useful.
-
-And remember: that red border might just save you from an awkward conversation with your security team.
-
----
-
-*Andy Rea is a software engineer at GitGuardian working on secret detection and security tooling.*
