@@ -1,3 +1,9 @@
+## [1.7.0](https://github.com/reaandrew/chromegg/compare/v1.6.0...v1.7.0) (2025-10-06)
+
+### Features
+
+* Remove green border styling, only highlight fields with detected secrets ([3eb702c](https://github.com/reaandrew/chromegg/commit/3eb702c9b9301ba6cdb98e9e184758f526edd7b0))
+
 ## [1.6.0](https://github.com/reaandrew/chromegg/compare/v1.5.0...v1.6.0) (2025-10-06)
 
 ### Features
