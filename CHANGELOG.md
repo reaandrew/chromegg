@@ -1,3 +1,9 @@
+## [1.6.0](https://github.com/reaandrew/chromegg/compare/v1.5.0...v1.6.0) (2025-10-06)
+
+### Features
+
+* Improve options page UX with masked API key and better guidance ([88eb0fa](https://github.com/reaandrew/chromegg/commit/88eb0fa0c9d607366d0932db6f73065eb341796d))
+
 ## [1.5.0](https://github.com/reaandrew/chromegg/compare/v1.4.0...v1.5.0) (2025-10-06)
 
 ### Features
