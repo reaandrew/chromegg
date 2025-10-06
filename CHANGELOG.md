@@ -1,3 +1,9 @@
+## [1.3.0](https://github.com/reaandrew/chromegg/compare/v1.2.0...v1.3.0) (2025-10-06)
+
+### Features
+
+* Add auto-redact feature with YAML format and GitGuardian findings ([3e78277](https://github.com/reaandrew/chromegg/commit/3e78277e2b9e321edf9110917dee3ac966490b89))
+
 ## [1.2.0](https://github.com/reaandrew/chromegg/compare/v1.1.1...v1.2.0) (2025-10-06)
 
 ### Features
