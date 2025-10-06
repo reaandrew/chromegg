@@ -100,6 +100,39 @@
         font-size: 14px;
         line-height: 1.5;
       }
+      .api-key-container {
+        position: relative;
+      }
+      .api-key-masked {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background-color: #f9f9f9;
+        font-size: 14px;
+      }
+      .masked-value {
+        color: #333;
+        letter-spacing: 2px;
+      }
+      .change-link {
+        color: #4caf50;
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 14px;
+      }
+      .change-link:hover {
+        text-decoration: underline;
+      }
+      .field-description {
+        display: block;
+        margin-top: 5px;
+        color: #666;
+        font-size: 12px;
+        line-height: 1.4;
+      }
     </style>
   </head>
   <body>
@@ -110,19 +143,28 @@
       <input
         type="text"
         id="apiUrl"
-        placeholder="Enter GitGuardian API URL"
+        placeholder="https://api.gitguardian.com"
+        value="https://api.gitguardian.com"
         autocomplete="off"
       />
+      <small class="field-description">Default is the GitGuardian public API. Change only if using a private instance.</small>
     </div>
 
     <div class="form-group">
       <label for="apiKey">GitGuardian API Key</label>
-      <input
-        type="text"
-        id="apiKey"
-        placeholder="Enter your GitGuardian API key"
-        autocomplete="off"
-      />
+      <div class="api-key-container">
+        <input
+          type="text"
+          id="apiKey"
+          placeholder="Enter your GitGuardian API key"
+          autocomplete="off"
+        />
+        <div id="apiKeyMasked" class="api-key-masked" style="display: none;">
+          <span class="masked-value">••••••••••••••••••••</span>
+          <a href="#" id="changeApiKey" class="change-link">Change</a>
+        </div>
+      </div>
+      <small class="field-description">Your API key is stored securely in your browser and never shared.</small>
     </div>
 
     <div class="form-group">
@@ -130,13 +172,15 @@
         <input type="checkbox" id="debugMode" />
         <label for="debugMode" style="margin-bottom: 0;">Enable Debug Logging</label>
       </div>
+      <small class="field-description">Shows detailed logs in the browser console for troubleshooting.</small>
     </div>
 
     <div class="form-group">
       <div class="checkbox-group">
         <input type="checkbox" id="continuousMode" />
-        <label for="continuousMode" style="margin-bottom: 0;">Continuous Mode (auto-scan on field change)</label>
+        <label for="continuousMode" style="margin-bottom: 0;">Continuous Mode</label>
       </div>
+      <small class="field-description">When enabled, automatically scans fields on change. When disabled, click the extension icon to scan manually.</small>
     </div>
 
     <div class="form-group">
@@ -144,6 +188,7 @@
         <input type="checkbox" id="autoRedact" checked />
         <label for="autoRedact" style="margin-bottom: 0;">Auto-Redact Detected Secrets</label>
       </div>
+      <small class="field-description">Automatically replaces detected secrets with the redaction text below.</small>
     </div>
 
     <div class="form-group">
@@ -155,19 +200,12 @@
         value="REDACTED"
         autocomplete="off"
       />
+      <small class="field-description">Text that replaces detected secrets when auto-redact is enabled.</small>
     </div>
 
     <button id="saveButton">Save Settings</button>
 
     <div id="status" class="status"></div>
-
-    <div class="info">
-      <p>
-        <strong>Note:</strong> The extension will only activate and show badges
-        when both the API URL and API key are configured. Your credentials are
-        stored locally in your browser.
-      </p>
-    </div>
 
     <script src="options.js"></script>
   </body>
