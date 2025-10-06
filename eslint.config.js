@@ -13,7 +13,8 @@ export default [
         ...globals.browser,
         ...globals.webextensions,
         ...globals.jest,
-        chrome: 'readonly'
+        chrome: 'readonly',
+        GitGuardianScanner: 'readonly'
       }
     },
     rules: {
@@ -25,6 +26,15 @@ export default [
       'curly': ['error', 'all'],
       'no-eval': 'error',
       'no-implied-eval': 'error'
+    }
+  },
+  {
+    files: ['**/*.test.js'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        ...globals.jest
+      }
     }
   },
   {

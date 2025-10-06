@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chromegg Settings</title>
+    <style>
+      body {
+        font-family:
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          Roboto,
+          'Helvetica Neue',
+          Arial,
+          sans-serif;
+        padding: 20px;
+        max-width: 600px;
+        margin: 0 auto;
+      }
+      h1 {
+        color: #333;
+        font-size: 24px;
+        margin-bottom: 20px;
+      }
+      .form-group {
+        margin-bottom: 20px;
+      }
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: #555;
+      }
+      input[type='text'] {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        box-sizing: border-box;
+      }
+      input[type='text']:focus {
+        outline: none;
+        border-color: #4caf50;
+      }
+      button {
+        background-color: #4caf50;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        font-size: 14px;
+        cursor: pointer;
+        font-weight: 500;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+      button:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+      }
+      .status {
+        margin-top: 15px;
+        padding: 10px;
+        border-radius: 4px;
+        display: none;
+      }
+      .status.success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+      .status.error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+      .info {
+        background-color: #e7f3ff;
+        padding: 15px;
+        border-radius: 4px;
+        margin-top: 20px;
+        border-left: 4px solid #2196f3;
+      }
+      .info p {
+        margin: 0;
+        color: #555;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Chromegg Settings</h1>
+
+    <div class="form-group">
+      <label for="apiUrl">GitGuardian API URL</label>
+      <input
+        type="text"
+        id="apiUrl"
+        placeholder="Enter GitGuardian API URL"
+        autocomplete="off"
+      />
+    </div>
+
+    <div class="form-group">
+      <label for="apiKey">GitGuardian API Key</label>
+      <input
+        type="text"
+        id="apiKey"
+        placeholder="Enter your GitGuardian API key"
+        autocomplete="off"
+      />
+    </div>
+
+    <button id="saveButton">Save Settings</button>
+
+    <div id="status" class="status"></div>
+
+    <div class="info">
+      <p>
+        <strong>Note:</strong> The extension will only activate and show badges
+        when both the API URL and API key are configured. Your credentials are
+        stored locally in your browser.
+      </p>
+    </div>
+
+    <script src="options.js"></script>
+  </body>
+</html>

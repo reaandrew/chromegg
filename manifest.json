@@ -3,12 +3,16 @@
   "name": "Chromegg",
   "version": "1.0.0",
   "description": "Shows an 'activated' badge when you focus on input fields",
-  "permissions": [],
-  "host_permissions": [],
+  "permissions": ["storage"],
+  "host_permissions": ["https://api.gitguardian.com/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_page": "options.html",
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js"],
+      "js": ["scanner.js", "content.js"],
       "css": ["badge.css"],
       "run_at": "document_idle"
     }

@@ -12,7 +12,7 @@
     "format": "prettier --write \"src/**/*.{js,json,css}\"",
     "format:check": "prettier --check \"src/**/*.{js,json,css}\"",
     "build": "npm run lint && npm run test && npm run build:copy",
-    "build:copy": "mkdir -p dist/icons && cp src/badge.js src/content.js src/badge.css dist/ && cp src/icons/*.png dist/icons/ && cp manifest.json dist/",
+    "build:copy": "mkdir -p dist/icons && cp src/badge.js src/content.js src/scanner.js src/background.js src/badge.css src/options.html src/options.js dist/ && cp src/icons/*.png dist/icons/ && cp manifest.json dist/",
     "clean": "rm -rf dist",
     "prepare": "husky",
     "install:chrome": "echo 'Load unpacked extension from dist/ folder in Chrome'"

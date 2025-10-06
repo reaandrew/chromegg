@@ -23,3 +23,14 @@
 .chromegg-badge[style*='display: block'] {
   opacity: 1;
 }
+
+/* Secret scanning result borders */
+.chromegg-secret-found {
+  border: 2px solid #f44336 !important;
+  box-shadow: 0 0 5px rgba(244, 67, 54, 0.5) !important;
+}
+
+.chromegg-no-secret {
+  border: 2px solid #4caf50 !important;
+  box-shadow: 0 0 5px rgba(76, 175, 80, 0.5) !important;
+}
