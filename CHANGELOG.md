@@ -1,3 +1,9 @@
+## [1.5.0](https://github.com/reaandrew/chromegg/compare/v1.4.0...v1.5.0) (2025-10-06)
+
+### Features
+
+* Add Continuous Mode setting for manual scan control ([f89a1bf](https://github.com/reaandrew/chromegg/commit/f89a1bff6becc5ad7cc7fa4470200ad98f0a2c2d))
+
 ## [1.4.0](https://github.com/reaandrew/chromegg/compare/v1.3.0...v1.4.0) (2025-10-06)
 
 ### Features
