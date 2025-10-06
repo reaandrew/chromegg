@@ -190,9 +190,8 @@ This extension follows Chrome extension security best practices:
 1. **Field Detection** - Content script monitors blur events on all form fields
 2. **Data Collection** - On blur, collects all form field values
 3. **API Scanning** - Sends data to GitGuardian API via background service worker
-4. **Visual Feedback** - Applies CSS classes based on scan results:
+4. **Visual Feedback** - Applies red border to fields containing detected secrets:
    - `chromegg-secret-found` - Red border for fields with secrets
-   - `chromegg-no-secret` - Green border for clean fields
 
 ### Trackable Fields
 

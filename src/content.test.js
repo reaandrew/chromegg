@@ -585,7 +585,6 @@ describe('FieldTracker', () => {
       fieldTracker.updateFieldBorders(null, new Map());
 
       expect(input.classList.contains('chromegg-secret-found')).toBe(false);
-      expect(input.classList.contains('chromegg-no-secret')).toBe(false);
     });
 
     test('handles single document response format', () => {
@@ -607,7 +606,8 @@ describe('FieldTracker', () => {
 
       fieldTracker.updateFieldBorders(scanResult, fieldMap);
 
-      expect(input.classList.contains('chromegg-no-secret')).toBe(true);
+      // No secrets found - should not have any border styling
+      expect(input.classList.contains('chromegg-secret-found')).toBe(false);
     });
 
     test('handles multi-document response format', () => {
@@ -633,7 +633,8 @@ describe('FieldTracker', () => {
 
       fieldTracker.updateFieldBorders(scanResult, fieldMap);
 
-      expect(input.classList.contains('chromegg-no-secret')).toBe(true);
+      // No secrets found - should not have any border styling
+      expect(input.classList.contains('chromegg-secret-found')).toBe(false);
     });
 
     test('handles large number of fields with batched updates', (done) => {
@@ -677,9 +678,11 @@ describe('FieldTracker', () => {
           expect(field.classList.contains('chromegg-secret-found')).toBe(true);
         });
 
-        // Check that fields without secrets got green borders
-        const greenField = document.querySelector('[data-gg-id="field-1"]');
-        expect(greenField.classList.contains('chromegg-no-secret')).toBe(true);
+        // Check that fields without secrets have no border styling
+        const cleanField = document.querySelector('[data-gg-id="field-1"]');
+        expect(cleanField.classList.contains('chromegg-secret-found')).toBe(
+          false
+        );
 
         done();
       }, 100);

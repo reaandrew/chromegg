@@ -412,15 +412,13 @@ class FieldTracker {
             logger.warn(`RED border #${redCount}: fieldId="${fieldId}"`);
           }
           field.classList.add('chromegg-secret-found');
-          field.classList.remove('chromegg-no-secret');
           this.scannedFields.set(field, { hasSecret: true });
 
           // Apply redaction if enabled
           this.applyRedaction(field, fieldsWithSecrets.get(fieldId));
         } else {
-          // No secret - green border
+          // No secret - no border (clear any existing)
           greenCount++;
-          field.classList.add('chromegg-no-secret');
           field.classList.remove('chromegg-secret-found');
           this.scannedFields.set(field, { hasSecret: false });
         }
@@ -432,7 +430,7 @@ class FieldTracker {
         requestAnimationFrame(processBatch);
       } else {
         logger.warn(
-          `Border updates complete: ${redCount} RED, ${greenCount} GREEN`
+          `Border updates complete: ${redCount} secrets highlighted, ${greenCount} clean fields`
         );
       }
     };
