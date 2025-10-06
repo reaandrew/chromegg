@@ -1,14 +1,47 @@
 # Chromegg
 
-A Chrome extension that displays an "activated" badge when you focus on input fields. Built with TDD (Test-Driven Development) and security best practices.
+A Chrome extension that scans form fields for secrets using GitGuardian API. Built with TDD (Test-Driven Development) and security best practices.
 
 ## Features
 
-- Shows a green "activated" badge above focused input fields
-- Works with text inputs, textareas, and contenteditable elements
-- Lightweight and unobtrusive
-- Built with security in mind (minimal permissions, CSP, no external dependencies)
-- Comprehensive test coverage
+- Real-time secret scanning on form field blur
+- Visual feedback with red borders for fields containing secrets
+- Green borders for clean fields
+- GitGuardian API integration via background service worker
+- Configurable API settings via options page
+- Comprehensive test coverage (83%+)
+- Built with security in mind (minimal permissions, CSP)
+
+## Quick Start
+
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **Build the extension:**
+   ```bash
+   npm run build
+   ```
+
+3. **Load in Chrome:**
+   - Open Chrome and navigate to `chrome://extensions/`
+   - Enable "Developer mode" (toggle in top right)
+   - Click "Load unpacked"
+   - Select the `dist/` folder from this project
+
+4. **Configure API settings:**
+   - Click the extension icon in Chrome toolbar
+   - Enter your GitGuardian API URL (default: `https://api.gitguardian.com`)
+   - Enter your GitGuardian API key
+   - Click "Save Settings"
+
+5. **Test the extension:**
+   - Open `test-page.html` in Chrome: `file:///path/to/chromegg/test-page.html`
+   - Type in the form fields (try entering API keys, passwords, etc.)
+   - Click away from the field (blur)
+   - Fields with secrets will show a **red border** 🔴
+   - Clean fields will show a **green border** 🟢
 
 ## Installation
 
@@ -16,7 +49,7 @@ A Chrome extension that displays an "activated" badge when you focus on input fi
 
 1. Clone this repository:
    ```bash
-   git clone <your-repo-url>
+   git clone https://github.com/reaandrew/chromegg.git
    cd chromegg
    ```
 
@@ -52,34 +85,43 @@ Download from the Chrome Web Store (link coming soon).
 ```
 chromegg/
 ├── src/
-│   ├── badge.js         # BadgeManager class for badge UI
-│   ├── badge.test.js    # Tests for BadgeManager
-│   ├── badge.css        # Badge styling
-│   ├── content.js       # Content script for field tracking
-│   ├── content.test.js  # Tests for FieldTracker
-│   └── icons/           # Extension icons
-├── manifest.json        # Extension manifest (Manifest V3)
-├── package.json         # NPM configuration
-├── jest.config.js       # Jest test configuration
-├── eslint.config.js     # ESLint configuration
-└── .prettierrc          # Prettier configuration
+│   ├── background.js      # Background service worker for API calls
+│   ├── scanner.js         # GitGuardianScanner class
+│   ├── scanner.test.js    # Tests for scanner
+│   ├── content.js         # Content script for field tracking
+│   ├── content.test.js    # Tests for FieldTracker
+│   ├── badge.js           # BadgeManager class (legacy, not used)
+│   ├── badge.test.js      # Tests for BadgeManager
+│   ├── badge.css          # Styling for field borders
+│   ├── options.html       # Options page UI
+│   ├── options.js         # Options page logic
+│   └── icons/             # Extension icons
+├── test-page.html         # Test page with sample form fields
+├── manifest.json          # Extension manifest (Manifest V3)
+├── package.json           # NPM configuration
+├── jest.config.js         # Jest test configuration
+├── eslint.config.js       # ESLint configuration
+├── build-for-browser.js   # Build script to strip ES exports
+└── .releaserc.json        # Semantic release configuration
 ```
 
 ### Available Scripts
 
 - `npm test` - Run all tests
 - `npm run test:watch` - Run tests in watch mode
-- `npm run test:coverage` - Run tests with coverage report
+- `npm run test:coverage` - Run tests with coverage report (83%+ coverage)
 - `npm run lint` - Check code quality with ESLint
 - `npm run lint:fix` - Auto-fix linting issues
 - `npm run format` - Format code with Prettier
 - `npm run format:check` - Check code formatting
-- `npm run build` - Build extension (lint + test + copy files)
+- `npm run build` - Build extension (lint + test + copy files + strip exports)
+- `npm run build:copy` - Copy source files to dist/
+- `npm run build:browser` - Strip ES module exports for browser compatibility
 - `npm run clean` - Remove dist folder
 
 ### Testing
 
-This project follows Test-Driven Development (TDD) principles. All core functionality is tested:
+This project follows Test-Driven Development (TDD) principles with 83%+ code coverage:
 
 ```bash
 # Run tests
@@ -92,6 +134,12 @@ npm run test:coverage
 npm run test:watch
 ```
 
+Coverage thresholds:
+- Statements: 70%
+- Branches: 70%
+- Functions: 70%
+- Lines: 70%
+
 ### Code Quality
 
 The project uses multiple tools to ensure code quality:
@@ -100,34 +148,45 @@ The project uses multiple tools to ensure code quality:
 - **Prettier** - Consistent code formatting
 - **Husky** - Pre-commit hooks
 - **lint-staged** - Run linters on staged files only
+- **Semantic Release** - Automated versioning and releases
 
 Before each commit, Husky automatically:
 1. Runs ESLint and auto-fixes issues
 2. Formats code with Prettier
 
+### CI/CD Pipeline
+
+GitHub Actions workflow runs on every push and PR:
+
+1. **Initial Checks** - Linting and unit tests
+2. **Semgrep** - Security analysis
+3. **Release** (main branch only) - Semantic versioning and changelog generation
+
 ### Security Features
 
 This extension follows Chrome extension security best practices:
 
-1. **Minimal Permissions** - No special permissions required
+1. **Minimal Permissions** - Only `storage` and GitGuardian API host permissions
 2. **Content Security Policy** - Strict CSP to prevent XSS attacks
-3. **No External Dependencies** - All code is self-contained
-4. **Manifest V3** - Uses the latest, more secure manifest version
-5. **No Eval or Inline Scripts** - All code is in external files
-6. **Input Sanitization** - Proper handling of user input
-7. **Read-only Access** - Extension only reads DOM, doesn't modify user data
+3. **Manifest V3** - Uses the latest, more secure manifest version
+4. **No Eval or Inline Scripts** - All code is in external files
+5. **Background Service Worker** - Handles API calls to avoid CORS
+6. **API Key Storage** - Credentials stored in Chrome sync storage
+7. **Secret Detection** - Scans for API keys, passwords, tokens, etc.
 
 ## How It Works
 
-1. **Field Detection** - Content script monitors focus/blur events on all pages
-2. **Badge Creation** - When a trackable field is focused, a badge is created and positioned
-3. **Position Tracking** - Badge position updates on scroll/resize to follow the field
-4. **Cleanup** - Badge is hidden when field loses focus
+1. **Field Detection** - Content script monitors blur events on all form fields
+2. **Data Collection** - On blur, collects all form field values
+3. **API Scanning** - Sends data to GitGuardian API via background service worker
+4. **Visual Feedback** - Applies CSS classes based on scan results:
+   - `chromegg-secret-found` - Red border for fields with secrets
+   - `chromegg-no-secret` - Green border for clean fields
 
 ### Trackable Fields
 
-The extension shows badges for:
-- `<input>` elements (type: text, email, password, search, tel, url, number, date, etc.)
+The extension scans:
+- `<input>` elements (type: text, email, password, search, tel, url, etc.)
 - `<textarea>` elements
 - Elements with `contenteditable="true"`
 
@@ -137,15 +196,53 @@ Does NOT track:
 - Radio buttons
 - Disabled or readonly fields
 
+## GitGuardian API
+
+This extension uses the GitGuardian API for secret detection. You'll need:
+
+1. A GitGuardian account
+2. An API key from your GitGuardian dashboard
+3. API URL (default: `https://api.gitguardian.com`)
+
+Configure these in the extension options page.
+
+## Testing with test-page.html
+
+The included `test-page.html` provides a test environment:
+
+1. Build and load the extension in Chrome
+2. Configure your GitGuardian API credentials in the extension options
+3. Open `test-page.html` in Chrome
+4. Enter test data in the form fields:
+   - Try entering API keys: `AKIAIOSFODNN7EXAMPLE`
+   - Try passwords: `MySecretPassword123!`
+   - Try regular text: `Hello World`
+5. Click away from the field (blur event)
+6. Observe the border colors:
+   - Red = Secret detected
+   - Green = No secrets found
+
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes
 4. Run tests and linting (`npm test && npm run lint`)
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
+5. Commit your changes using conventional commits (`git commit -m 'feat: Add amazing feature'`)
 6. Push to the branch (`git push origin feature/amazing-feature`)
 7. Open a Pull Request
+
+### Conventional Commits
+
+This project uses conventional commits for automated versioning:
+
+- `feat:` - New feature (minor version bump)
+- `fix:` - Bug fix (patch version bump)
+- `docs:` - Documentation changes (patch version bump)
+- `test:` - Test changes (patch version bump)
+- `ci:` - CI/CD changes (patch version bump)
+- `chore:` - Maintenance (no version bump)
+- `BREAKING CHANGE:` - Breaking change (major version bump)
 
 ## License
 
@@ -153,4 +250,7 @@ MIT
 
 ## Acknowledgments
 
-Built with Chrome Extension Manifest V3 and modern web standards.
+- Built with Chrome Extension Manifest V3
+- GitGuardian API for secret detection
+- Test-Driven Development with Jest
+- Semantic Release for automated versioning
