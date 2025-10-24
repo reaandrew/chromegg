@@ -54,7 +54,7 @@ A Chrome extension that scans form fields for secrets using GitGuardian API. Bui
    - Select the `dist/` folder from this project
 
 4. **Configure API settings:**
-   - Click the extension icon in Chrome toolbar
+   - Right click the extension icon in Chrome toolbar and select 'Settings'
    - Enter your GitGuardian API URL (default: `https://api.gitguardian.com`)
    - Enter your GitGuardian API key
    - Click "Save Settings"
